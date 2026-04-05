@@ -1,0 +1,57 @@
+JIGSAW LODGE — COMPLETE SYSTEM BIBLE (FINAL MASTER BUILD)
+
+OVERVIEW Jigsaw Lodge is a server-authoritative MMO system built for: -
+Second Life (LSL clients) - Node.js distributed backend - Redis
+real-time state - WebSocket live feed - HTTP persistence layer
+
+CORE PRINCIPLE Second Life scripts are clients only. All logic lives on
+the backend.
+
+SYSTEM ARCHITECTURE [ SECOND LIFE ] HUD / Furniture / Kiosk (LSL
+Clients) ↓ HTTP [ NODE BACKEND CLUSTER ] ↓ [ REDIS REAL-TIME STATE ] ↓ [
+WEBSOCKET FEED ] ↓ [ WEB UI + HUD FEEDBACK ]
+
+MODULES
+
+CORE SERVER - XP / Ritual math - Zone warfare logic - Order control -
+Honey buffs - Addiction pacing - Event generation - Anti-spam
+
+REDIS STATE - player:{id} - zone:{key} - events - orders
+
+ZONE WARFARE - Grid-based zones - Pressure system - Threshold flip at
+100 - Emits zone_flip events
+
+ORDERS - ARCHITECT - EYE - BLACK_SUN
+
+HONEY SYSTEM - 45 minute buffs - Server enforced cooldown
+
+ARTIFACT SYSTEM - Only Azrael and Paul create artifacts - No random
+drops - 2–3 day lifetime
+
+PENTACLE ECONOMY - Not used to buy artifacts - Used for activation /
+enhancement
+
+EVENT SYSTEM - milestone - zone_flip - artifact - honey_used - surge
+
+WEBSOCKET FEED Real-time broadcast system.
+
+ADDICTION ENGINE - milestone spikes - scarcity loops - delayed reward
+pacing
+
+HUD SYSTEM - Sends actions - Receives state - Highlights events
+
+WEB UI - Displays global feed - Acts as observer layer
+
+SECURITY - No client trust - Server validation - Architect locked
+controls
+
+ARCHITECTS AZRAEL: 56971ddd-9840-4733-8802-59e53fe13976 PAUL:
+efa3031a-eba5-45a4-a41a-9ec41615be21
+
+FAILURE MODEL - Redis down = stall - Node restart = safe - Web down =
+unaffected
+
+SYSTEM STATUS - Distributed architecture - Real-time sync - Stable
+backend - Controlled economy
+
+END OF DOCUMENT

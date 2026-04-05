@@ -1,0 +1,34 @@
+
+JIGSAW LODGE MASTER BIBLE (Condensed)
+
+SYSTEMS:
+Ritual Engine
+XP Engine
+Honey System
+Surge Engine
+Heat Engine
+Recruitment Engine
+Leaderboard System
+Challenge System
+
+
+XP Formula:
+XP = base_xp × honey_multiplier × surge_multiplier × group_tag_bonus
+
+Honey Types:
+Normal: x2 45m
+Dev: x3 30m
+Poison: x5 12m (Rank #6 only)
+Royal: x7 15m
+
+Surge Trigger:
+2–6 sitters activating same object within 7 seconds.
+
+Recruit Flow:
+Invite → Teleport → 10‑minute initiation → HUD pickup → Player registered.
+
+Convergence Events:
+Every 15 minutes and 45 minutes.
+
+Authority:
+Only Paul & Azrael hold system authority.

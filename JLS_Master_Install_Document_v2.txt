@@ -1,0 +1,682 @@
+JIGSAW LODGE SOCIETY
+MASTER INSTALL DOCUMENT
+This file is plain text on purpose.
+Copy each script into its own Second Life object or attachment.
+
+// ================= JLS HUD v64 — BOOT ENHANCED (SAFE UPGRADE) =================
+
+// ================= ENDPOINTS =================
+string API_MAIN = "https://jigsawlodgesociety.com/api/event";
+string REALTIME_MAIN = "https://jigsawlodgesociety.com/api/realtime/";
+
+string API;
+string REALTIME;
+
+// ================= STATE =================
+integer rituals;
+integer bonds;
+integer watchers;
+integer pentacles;
+
+string currentOrder = "";
+
+// ================= BOOT =================
+integer bootIndex = 0;
+float bootTimer = 0.0;
+integer bootDone = FALSE;
+
+// identity seed
+integer identitySeed;
+
+// ================= SYMBOL =================
+list symbols = ["∴","⟁","⌬","◉","⋮","⌁","⛧","◈","✶","✧","⟐","⌭"];
+integer symbolIndex = 0;
+
+string nextSymbol()
+{
+    symbolIndex = (symbolIndex + 1) % llGetListLength(symbols);
+    return llList2String(symbols, symbolIndex);
+}
+
+// ================= ORDER =================
+string orderGlyph()
+{
+    if (currentOrder == "Architects") return "⟁";
+    if (currentOrder == "Black Sun") return "☣";
+    if (currentOrder == "Illuminated Eye") return "◉";
+    return nextSymbol();
+}
+
+// ================= IDENTITY =================
+string identitySig()
+{
+    string id = (string)llGetOwner();
+    integer len = llStringLength(id);
+
+    integer i;
+    string out = "";
+
+    for (i = 0; i < 6; i++)
+    {
+        integer idx = (i * 5 + identitySeed) % len;
+        string c = llGetSubString(id, idx, idx);
+        out += (string)((integer)c % 9);
+    }
+
+    return out;
+}
+
+// ================= ORIGINAL BOOT FRAMES =================
+list bootFrames = [
+"∴ ∴ ∴\n⋮⋮⋮⋮⋮\n∴ ∴ ∴",
+"⌁⌁⌁⌁⌁\n◉ ◉ ◉\n⌁⌁⌁⌁⌁",
+"DYN_CORE",
+"◉◉◉◉◉\n⌬⌬⌬⌬⌬\n◉◉◉◉◉",
+"⋮⋮⋮⋮⋮\nYOU ARE SEEN\n⋮⋮⋮⋮⋮",
+"DYN_SIGIL",
+"⌁⌁⌁\nPATTERN DETECTED\n⌁⌁⌁",
+"DYN_INTRUSION",
+"⟁⟁⟁⟁⟁\nYOU RETURN\n⟁⟁⟁⟁⟁",
+"⋮⋮⋮⋮⋮\n▵ RECOGNIZED ▵\n⋮⋮⋮⋮⋮",
+"⛧⌬⛧⌬⛧\n⌁⌁⌁⌁⌁\n⛧⌬⛧⌬⛧",
+"◉◉◉◉◉\nIDENTITY LOCK\n◉◉◉◉◉",
+"DYN_FINAL",
+"◆◆◆\nENTER\n◆◆◆"
+];
+
+// ================= BUILD (ENHANCED) =================
+string build(string f)
+{
+    if (f == "DYN_CORE")
+        return "⟁ "+nextSymbol()+" ⟁\n⋮ "+nextSymbol()+" ⋮\n⟁ "+nextSymbol()+" ⟁";
+
+    if (f == "DYN_SIGIL")
+        return "⛧ "+nextSymbol()+" "+nextSymbol()+" ⛧\n"+nextSymbol()+" "+nextSymbol()+" "+nextSymbol();
+
+    if (f == "DYN_INTRUSION")
+        return "◉ "+nextSymbol()+" ◉\nINTRUSION ACCEPTED\n◉ "+nextSymbol()+" ◉";
+
+    if (f == "DYN_FINAL")
+        return "▵ JIGSAW LODGE SOCIETY ▵\n"+orderGlyph()+" "+orderGlyph()+" "+orderGlyph();
+
+    // 🔥 inject identity during mid-boot
+    if (bootIndex == 3)
+        return "ID "+identitySig()+"\n"+nextSymbol()+" "+nextSymbol();
+
+    // 🔥 inject authentication moment
+    if (bootIndex == 8)
+        return "YOU ARE KNOWN\n"+orderGlyph()+" "+nextSymbol()+" "+orderGlyph();
+
+    return f;
+}
+
+// ================= VISUAL (UNCHANGED FROM YOUR SYSTEM) =================
+string activeHoney = "";
+integer honeyExpireTime;
+
+integer overlayActive;
+integer overlayEndTime;
+string overlayType;
+
+vector applyHoney(vector base)
+{
+    float t = (float)llGetUnixTime();
+
+    if (activeHoney == "dev")
+        return <0.2,0.8,1.0> * (0.7 + llSin(t*6.0)*0.3);
+
+    if (activeHoney == "royal")
+        return <1.0,0.9,0.5> * (0.85 + llSin(t*1.5)*0.15);
+
+    if (activeHoney == "poison")
+        return (llFrand(1.0)>0.5) ? <0.6,1.0,0.2> : <1.0,0.0,0.6>;
+
+    return base;
+}
+
+// ================= OVERLAY =================
+startOverlay(string type, integer dur)
+{
+    overlayActive = TRUE;
+    overlayType = type;
+    overlayEndTime = llGetUnixTime() + dur;
+}
+
+string overlayText()
+{
+    if (overlayType == "ritual")
+        return "⟁ "+nextSymbol()+" ⟁\n◉ RITUAL COMPLETE ◉\n⟁ "+nextSymbol()+" ⟁";
+
+    if (overlayType == "battle")
+        return "⚔⚔⚔\nBATTLE RESOLVED\n⚔⚔⚔";
+
+    if (overlayType == "surge")
+        return "✧ SYNC SURGE ✧\n◉ ◉ ◉";
+
+    return "";
+}
+
+// ================= UI =================
+vector phaseColor(integer pct)
+{
+    return <1.0,(float)pct/100.0,1.0-(float)pct/100.0>;
+}
+
+string progressBar(integer pct)
+{
+    integer total = 20;
+    integer filled = (pct * total) / 100;
+    integer i;
+    string bar = "";
+
+    for(i=0;i<total;i++)
+        bar += (i<filled) ? "▓" : "░";
+
+    return bar;
+}
+
+// ================= RENDER =================
+renderHUD()
+{
+    if (overlayActive && llGetUnixTime() < overlayEndTime)
+    {
+        llSetText(overlayText(), <1,1,1>, 1.0);
+        return;
+    }
+
+    vector col = applyHoney(phaseColor(ritualProgress));
+
+    string display =
+        "▵ JIGSAW LODGE SOCIETY ▵\n\n"+
+        progressBar(ritualProgress);
+
+    llSetText(display, col, 1.0);
+}
+
+// ================= MAIN =================
+default
+{
+    state_entry()
+    {
+        API = API_MAIN;
+        REALTIME = REALTIME_MAIN;
+        identitySeed = (integer)llFrand(9999);
+
+        llSetTimerEvent(0.5);
+    }
+
+    timer()
+    {
+        if (!bootDone)
+        {
+            bootTimer += 0.5;
+
+            if (bootTimer > 2.2)
+            {
+                bootIndex++;
+                bootTimer = 0.0;
+
+                if (bootIndex >= llGetListLength(bootFrames))
+                    bootDone = TRUE;
+            }
+
+            llSetText(build(llList2String(bootFrames, bootIndex)), <1,1,1>, 1.0);
+            return;
+        }
+
+        if (overlayActive && llGetUnixTime() > overlayEndTime)
+            overlayActive = FALSE;
+
+        llHTTPRequest(
+            REALTIME + (string)llGetOwner(),
+            [HTTP_METHOD,"GET"],
+            ""
+        );
+
+        renderHUD();
+    }
+
+    http_response(key id, integer status, list meta, string body)
+    {
+        if (status != 200) return;
+
+        if (llJsonValueType(body, ["event","type"]) != JSON_INVALID)
+        {
+            string ev = llJsonGetValue(body, ["event","type"]);
+
+            if (ev == "ritual_complete") startOverlay("ritual",5);
+            if (ev == "battle_result") startOverlay("battle",3);
+            if (ev == "surge_sync") startOverlay("surge",4);
+        }
+
+        if (llJsonValueType(body, ["state","honey_active"]) != JSON_INVALID)
+            activeHoney = llJsonGetValue(body, ["state","honey_active"]);
+
+        if (llJsonValueType(body, ["state","ritual_progress"]) != JSON_INVALID)
+            ritualProgress = (integer)llJsonGetValue(body, ["state","ritual_progress"]);
+
+        if (llJsonValueType(body, ["state","order"]) != JSON_INVALID)
+            currentOrder = llJsonGetValue(body, ["state","order"]);
+    }
+}
+
+
+SCRIPT 2 — GREETER / HUD GIVER
+// ================= JLS GREETER v1 =================
+string HUD_NAME = "JLS HUD v60";
+string API = "https://jigsawlodgesociety.com/api/event";
+
+default
+{
+    touch_start(integer n)
+    {
+        key user = llDetectedKey(0);
+
+        if (llGetInventoryType(HUD_NAME) == INVENTORY_NONE)
+        {
+            llOwnerSay("Missing HUD in inventory.");
+            return;
+        }
+
+        llGiveInventory(user, HUD_NAME);
+        llRegionSayTo(user, 0, "▵ You have been initiated ▵");
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)user,
+            "source","greeter",
+            "type","session_start",
+            "zone","greeter",
+            "impact","low"
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+    }
+}
+
+
+SCRIPT 3 — FURNITURE (RITUAL + SURGE)
+// ================= JLS FURNITURE v1 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+
+default
+{
+    touch_start(integer n)
+    {
+        key user = llDetectedKey(0);
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)user,
+            "source","furniture",
+            "type","interaction_trigger",
+            "zone","Sanctum",
+            "impact","medium",
+            "object",(string)llGetKey()
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+    }
+}
+
+
+SCRIPT 4 — ZONE MODULE
+// ================= JLS ZONE MODULE v1 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+
+default
+{
+    collision_start(integer n)
+    {
+        key user = llDetectedKey(0);
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)user,
+            "source","zone",
+            "type","zone_enter",
+            "zone","Sanctum",
+            "impact","low"
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+    }
+}
+
+
+SCRIPT 5 — ARTIFACT GENERATOR
+// ================= JLS ARTIFACT v1 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+
+default
+{
+    touch_start(integer n)
+    {
+        key user = llDetectedKey(0);
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)user,
+            "source","artifact",
+            "type","artifact_claim",
+            "zone","world",
+            "impact","high",
+            "xp",50
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+    }
+}
+
+
+SCRIPT 6 — HONEY KIOSK
+// ================= JLS HONEY KIOSK v2 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+integer CHANNEL = -90001;
+integer listenHandle;
+key pendingUser;
+string pendingType = "";
+integer pendingAmount = 0;
+
+default
+{
+    state_entry()
+    {
+        listenHandle = llListen(CHANNEL, "", NULL_KEY, "");
+        llSetPayPrice(80, [80, 0, 0, 0]);
+    }
+
+    touch_start(integer n)
+    {
+        key user = llDetectedKey(0);
+        pendingUser = user;
+        llDialog(user, "Select Honey Type:", ["DEV (80L)", "ROYAL (TRADE)", "POISON (80L)", "CLOSE"], CHANNEL);
+    }
+
+    listen(integer c, string n, key id, string msg)
+    {
+        if (c != CHANNEL) return;
+        if (id != pendingUser) return;
+
+        if (msg == "CLOSE") return;
+
+        if (msg == "DEV (80L)")
+        {
+            pendingType = "dev";
+            pendingAmount = 80;
+            llInstantMessage(id, "Pay 80L to claim Dev Honey.");
+            return;
+        }
+
+        if (msg == "POISON (80L)")
+        {
+            pendingType = "poison";
+            pendingAmount = 80;
+            llInstantMessage(id, "Pay 80L to claim Poison Honey.");
+            return;
+        }
+
+        if (msg == "ROYAL (TRADE)")
+        {
+            string body = llList2Json(JSON_OBJECT, [
+                "avatar",(string)id,
+                "source","kiosk",
+                "type","honey_trade",
+                "zone","kiosk",
+                "impact","high",
+                "honey_type","royal"
+            ]);
+
+            llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+            return;
+        }
+    }
+
+    money(key giver, integer amount)
+    {
+        if (giver != pendingUser) return;
+        if (pendingType == "") return;
+        if (amount != pendingAmount) return;
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)giver,
+            "source","kiosk",
+            "type","honey_purchase",
+            "zone","kiosk",
+            "impact","high",
+            "honey_type",pendingType,
+            "price_l",amount
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+
+        pendingType = "";
+        pendingAmount = 0;
+    }
+}
+
+
+SCRIPT 7 — ORDER KIOSK
+// ================= JLS ORDER KIOSK v2 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+integer CHANNEL = -90002;
+integer listenHandle;
+key pendingUser;
+string pendingSkin = "";
+string pendingMode = "";
+
+default
+{
+    state_entry()
+    {
+        listenHandle = llListen(CHANNEL, "", NULL_KEY, "");
+        llSetPayPrice(250, [250, 0, 0, 0]);
+    }
+
+    touch_start(integer n)
+    {
+        key user = llDetectedKey(0);
+        pendingUser = user;
+
+        llDialog(
+            user,
+            "Select Cosmetic Purchase:",
+            ["SKIN (250L)", "SKIN (500P)", "CLOSE"],
+            CHANNEL
+        );
+    }
+
+    listen(integer c, string n, key id, string msg)
+    {
+        if (c != CHANNEL) return;
+        if (id != pendingUser) return;
+
+        if (msg == "CLOSE") return;
+
+        if (msg == "SKIN (250L)")
+        {
+            pendingSkin = "order_skin";
+            pendingMode = "linden";
+            llInstantMessage(id, "Pay 250L to purchase the cosmetic skin.");
+            return;
+        }
+
+        if (msg == "SKIN (500P)")
+        {
+            pendingSkin = "order_skin";
+            pendingMode = "pentacles";
+            string body = llList2Json(JSON_OBJECT, [
+                "avatar",(string)id,
+                "source","kiosk",
+                "type","cosmetic_purchase",
+                "zone","order",
+                "impact","high",
+                "purchase_mode","pentacles",
+                "cost_p",500
+            ]);
+
+            llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+            pendingSkin = "";
+            pendingMode = "";
+            return;
+        }
+    }
+
+    money(key giver, integer amount)
+    {
+        if (giver != pendingUser) return;
+        if (pendingMode != "linden") return;
+        if (amount != 250) return;
+
+        string body = llList2Json(JSON_OBJECT, [
+            "avatar",(string)giver,
+            "source","kiosk",
+            "type","cosmetic_purchase",
+            "zone","order",
+            "impact","high",
+            "purchase_mode","linden",
+            "cost_l",amount
+        ]);
+
+        llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+
+        pendingSkin = "";
+        pendingMode = "";
+    }
+}
+
+
+SCRIPT 8 — LEADERBOARD DISPLAY
+// ================= JLS LEADERBOARD v1 =================
+string API = "https://jigsawlodgesociety.com/api/world";
+integer lastRequest;
+string display = "🏆 LEADERBOARD LIVE";
+
+default
+{
+    state_entry()
+    {
+        llSetTimerEvent(10.0);
+    }
+
+    timer()
+    {
+        lastRequest = llGetUnixTime();
+        llHTTPRequest(API,[HTTP_METHOD,"GET"],"");
+    }
+
+    http_response(key id, integer s, list m, string body)
+    {
+        if (s != 200)
+        {
+            llSetText("🏆 LEADERBOARD LIVE\nOFFLINE", <1,0.5,0.5>, 1.0);
+            return;
+        }
+
+        integer eventsCount = 0;
+        integer playersCount = 0;
+
+        if (llJsonValueType(body, ["events"]) == JSON_ARRAY)
+            eventsCount = llGetListLength(llJson2List(llJsonGetValue(body, ["events"])));
+
+        if (llJsonValueType(body, ["players"]) == JSON_OBJECT)
+            playersCount = 1;
+
+        display = "🏆 LEADERBOARD LIVE\nEvents: " + (string)eventsCount + "\nPlayers: " + (string)playersCount;
+        llSetText(display, <1,0.8,0>, 1.0);
+    }
+}
+
+
+SCRIPT 9 — ADMIN / TEST PANEL
+// ================= JLS ADMIN PANEL v2 =================
+string API = "https://jigsawlodgesociety.com/api/event";
+integer CHANNEL = -90003;
+integer listenHandle;
+
+default
+{
+    state_entry()
+    {
+        listenHandle = llListen(CHANNEL, "", llGetOwner(), "");
+    }
+
+    touch_start(integer n)
+    {
+        if (llDetectedKey(0) != llGetOwner()) return;
+
+        llDialog(
+            llGetOwner(),
+            "Admin / Test Panel",
+            ["RITUAL START", "RITUAL COMPLETE", "BATTLE START", "BATTLE RESULT", "ARTIFACT SPAWN", "HONEY CLAIM", "CLOSE"],
+            CHANNEL
+        );
+    }
+
+    listen(integer c, string n, key id, string msg)
+    {
+        if (id != llGetOwner()) return;
+
+        if (msg == "CLOSE") return;
+
+        string eventType = "";
+
+        if (msg == "RITUAL START") eventType = "ritual_start";
+        else if (msg == "RITUAL COMPLETE") eventType = "ritual_complete";
+        else if (msg == "BATTLE START") eventType = "battle_start";
+        else if (msg == "BATTLE RESULT") eventType = "battle_result";
+        else if (msg == "ARTIFACT SPAWN") eventType = "artifact_spawn";
+        else if (msg == "HONEY CLAIM") eventType = "honey_claim";
+
+        if (eventType != "")
+        {
+            string body = llList2Json(JSON_OBJECT, [
+                "avatar",(string)llGetOwner(),
+                "source","admin",
+                "type",eventType,
+                "zone","admin",
+                "impact","high",
+                "xp",100,
+                "honey",1
+            ]);
+
+            llHTTPRequest(API,[HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],body);
+            llOwnerSay("Admin event fired: " + eventType);
+        }
+    }
+}
+
+
+USER MANUAL
+
+Jigsaw Lodge Society is a server-authoritative social MMO system. The HUD is the main player interface. The greeter gives new players their HUD and starts the session. Furniture drives ritual interactions. Zone modules mark presence. Artifact generators spawn or claim artifacts. The honey kiosk handles Dev Honey, Royal Honey trade, and Poison Honey. The order kiosk handles cosmetic skins and order identity. The leaderboard display is a live status display. The admin panel is for testing.
+
+How to install:
+1. Create separate prims or attachments for each script.
+2. Paste one script into one object.
+3. For the HUD, place the full JLS HUD v60 script into the worn HUD object.
+4. For the Greeter, include a copy of the HUD item named exactly "JLS HUD v60" inside the Greeter inventory so it can be given out.
+5. Set the HUD to be worn by the player.
+6. Configure the honey kiosk and order kiosk as paid objects if you want L$ payment to be accepted.
+7. Link the objects only if your design requires it; the scripts do not depend on linking except the HUD menu itself.
+8. Test the admin panel first to verify the backend is receiving events.
+9. Then test the greeter, furniture, zone, honey, order, and artifact scripts.
+10. Open the website at JigsawLodgeSociety.com and verify the feed is receiving live events.
+
+How to play:
+- Wear the HUD.
+- Enter a ritual object or furniture trigger.
+- Complete rituals through the full event flow.
+- Use honey to modify progression.
+- Buy cosmetic skins from the order kiosk.
+- Use the leaderboard to track progress.
+- Invite friends or hand them the HUD through the Greeter or HUD menu.
+- The system will reward synchronization, rituals, battles, artifacts, and order identity.
+
+Important rules:
+- The backend is the authority.
+- The HUD only displays and sends actions.
+- Scripts do not decide outcomes locally.
+- The website is the observer layer.
+- The HUD is the player layer.
+- The order symbols remain visible and should not be overwritten by cosmetics.
+- The progress presentation is chromatic and animated, not a static number readout.
+- The manual and scripts are meant to be installed as a complete package.
+
+End of manual.
