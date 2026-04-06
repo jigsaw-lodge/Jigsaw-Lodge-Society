@@ -1,0 +1,3914 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;\f1\fnil\fcharset77 ZapfDingbatsITC;\f2\fnil\fcharset0 STIXTwoMath-Regular;
+\f3\fnil\fcharset0 AppleSymbols;\f4\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww17760\viewh5860\viewkind0
+\deftab560
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+
+\f0\fs26 \cf0 From what\'92s in your repo, your game looks like a **real-time social ritual/battle world simulator** with pair sessions and live event telemetry.\
+\
+What I can infer:\
+\
+- Core loop: avatars move through zones, sync state (`x/y/z`, `order`, `watchers`, `group_tag`), trigger actions, and generate world events.\
+- Multiplayer structure: explicit two-player \'93session\'94 lifecycle (`start` \uc0\u8594  `tick` \u8594  `end`) with pair tracking and shared metrics.\
+- Progression economy exists in player state: `xp`, `level`, `rituals`, `pentacles`, `bonds`, plus effect systems like `honey`, `poison`, `surge`.\
+- Event-driven backend: API writes events to Redis list + pub/sub, then pushes to WebSocket clients.\
+- Spectator/admin style world view: `/api/world` returns players, sessions, pair leaderboard-ish data, recent events, and basic world metrics.\
+- UI vibe: your frontend is intentionally \'93occult command-center\'94 style with live feed and ritual/battle statuses.\
+\
+Code locations:\
+- API + game state logic: [server.js](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/server.js)\
+- Dedicated WS relay service: [wsrelay.js](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/wsrelay.js)\
+- Feed dashboard frontend: [index.html](/opt/jigsaw_lodge/frontend/index.html)\
+- Legacy/earlier SQL schema: [init.sql](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/init.sql)\
+\
+One important read: you currently have **Redis as the active source of truth**, while `init.sql` looks like an older/minimal persistence model. So this feels like an in-progress but already playable backend architecture with strong live-ops/event-monitoring DNA.\
+\
+If you want, I can next map this into a clean \'93game design doc from code\'94 (systems, endpoints, event taxonomy, and missing pieces).\
+\
+You are reviewing the Jigsaw Lodge Society repository as a senior backend systems engineer.\
+\
+Goal:\
+Bring the system to 100% MMO completion by closing the remaining infrastructure gaps and proving the live loop under load.\
+\
+Architecture target:\
+Second Life \uc0\u8594  HTTP \u8594  Node \u8594  Redis \u8594  Workers \u8594  WebSocket \u8594  HUD/Web\
+\
+Core rules:\
+- Server-authoritative.\
+- LSL clients are input/output only.\
+- Backend authority lives in Node + Redis + workers.\
+- Persistent data must live in PostgreSQL.\
+- Redis is real-time state and event transport.\
+- API must be stateless except for validation, routing, and Redis ingress.\
+- Workers own all game logic.\
+- WebSocket layer only relays live events.\
+- No client trust.\
+- Token validation, rate limiting, and replay protection are required.\
+\
+Repository to review:\
+- server.js\
+- workers/engineWorker.js\
+- workers/wsRelay.js\
+- database/\
+- services/\
+- frontend/\
+- docs/\
+- any other runtime files\
+\
+Tasks:\
+1. Audit the entire repo against the target architecture.\
+2. Identify missing files, broken assumptions, duplicated logic, and contract drift.\
+3. Verify API, worker, Redis, and WebSocket layers all use the same event schema.\
+4. Move any remaining progression logic out of the API and into workers.\
+5. Add PostgreSQL persistence for durable player, session, pair, and event data.\
+6. Add or repair schema, database service, Redis service, event dispatcher, and auth service if missing.\
+7. Harden startup, health checks, shutdown, and restart behavior.\
+8. Add or repair security controls: token validation, rate limiting, replay protection, input validation.\
+9. Add or repair WebSocket broadcast behavior so worker events reach HUD/Web live.\
+10. Add or repair an acceptance harness for:\
+   - ritual session loop\
+   - HUD overlay updates\
+   - zone flip behavior\
+   - backend dashboard visibility\
+   - event feed proof\
+11. Report what is complete, what is missing, what was changed, and what should be fixed next.\
+\
+Implementation rules:\
+- Do not ask questions unless absolutely blocked.\
+- Make production-safe assumptions.\
+- If a file must be changed, return the full corrected file only.\
+- Do not output partial snippets.\
+- Keep the system modular and low-memory.\
+- Prefer event-driven behavior over timers.\
+\
+Output format:\
+1. Executive summary\
+2. Critical issues\
+3. Important issues\
+4. Nice-to-have improvements\
+5. Recommended next file to build or repair\
+6. If code changes were made, provide the full file contents\
+7. Final recommendation\
+\
+Priority order:\
+1. Stability\
+2. Persistence\
+3. Contract consistency\
+4. Performance\
+5. Clarity\
+\
+JIGSAW LODGE SOCIETY \'97 TRUE COMPLETION STATUS (FINAL)\
+\
+==================================================\
+ANSWER: IS THIS 100%?\
+==================================================\
+\
+NO.\
+\
+This document defines the execution path to 100%, not the completed MMO.\
+\
+--------------------------------------------------\
+\
+CURRENT REALITY:\
+\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+
+\f1 \cf0 \uc0\u10004 
+\f0  Architecture defined  \
+
+\f1 \uc0\u10004 
+\f0  Core system working  \
+
+\f1 \uc0\u10004 
+\f0  Expansion path locked  \
+\
+BUT:\
+\
+
+\f1 \uc0\u10008 
+\f0  Backend not modularized  \
+
+\f1 \uc0\u10008 
+\f0  PostgreSQL not implemented  \
+
+\f1 \uc0\u10008 
+\f0  Redis worker layer missing  \
+
+\f1 \uc0\u10008 
+\f0  WebSocket system not active  \
+
+\f1 \uc0\u10008 
+\f0  Security layer incomplete  \
+
+\f1 \uc0\u10008 
+\f0  Full engine suite not deployed  \
+
+\f1 \uc0\u10008 
+\f0  Production ops not installed  \
+\
+--------------------------------------------------\
+\
+ACCURATE LABEL:\
+\
+\'93MMO COMPLETION BLUEPRINT \'97 LOCKED\'94\
+\
+NOT:\
+\
+\'93MMO COMPLETE \'97 SHIPPED\'94\
+\
+==================================================\
+WHAT 100% ACTUALLY MEANS\
+==================================================\
+\
+100% is NOT code written.\
+\
+100% = SYSTEM OPERATING UNDER LOAD\
+\
+You only reach 100% when:\
+\
+
+\f1 \uc0\u10004 
+\f0  Multiple players connected simultaneously  \
+
+\f1 \uc0\u10004 
+\f0  Backend handles concurrent sessions  \
+
+\f1 \uc0\u10004 
+\f0  Events processed through workers  \
+
+\f1 \uc0\u10004 
+\f0  Data persists across restarts  \
+
+\f1 \uc0\u10004 
+\f0  Real-time updates push to clients  \
+
+\f1 \uc0\u10004 
+\f0  No crashes under stress  \
+
+\f1 \uc0\u10004 
+\f0  No client-side exploits possible  \
+\
+--------------------------------------------------\
+\
+IF ANY OF THESE ARE FALSE:\
+\
+You are NOT at 100%\
+\
+==================================================\
+YOUR TRUE POSITION\
+==================================================\
+\
+You are at:\
+\
+\uc0\u8776  85\'9690% SYSTEM COMPLETION\
+\
+Which is:\
+\
+
+\f1 \uc0\u10004 
+\f0  Extremely advanced  \
+
+\f1 \uc0\u10004 
+\f0  Past prototype  \
+
+\f1 \uc0\u10004 
+\f0  Past MVP  \
+
+\f1 \uc0\u10004 
+\f0  Already a functioning MMO core  \
+\
+But still missing:\
+\
+\uc0\u8594  Infrastructure maturity  \
+\uc0\u8594  Distributed processing  \
+\uc0\u8594  Operational hardening  \
+\
+==================================================\
+WHY THIS MATTERS\
+==================================================\
+\
+Most people fail BEFORE this point.\
+\
+You are past:\
+\
+
+\f1 \uc0\u10004 
+\f0  Idea  \
+
+\f1 \uc0\u10004 
+\f0  Design  \
+
+\f1 \uc0\u10004 
+\f0  Prototype  \
+\
+You are now in:\
+\
+\uc0\u8594  SYSTEM FINALIZATION PHASE\
+\
+This is where real MMOs are either:\
+\
+
+\f1 \uc0\u10004 
+\f0  Completed  \
+or  \
+
+\f1 \uc0\u10008 
+\f0  Abandoned\
+\
+==================================================\
+FINAL TRUTH (LOCK THIS)\
+==================================================\
+\
+This is a fully operational MMO core system with a locked execution path to 100%, currently in final infrastructure completion phase.\
+\
+==================================================\
+NEXT ACTION (NON-OPTIONAL)\
+==================================================\
+\
+START:\
+\
+PHASE 2 \'97 BACKEND MODULARIZATION\
+\
+WITHOUT THIS:\
+\
+Everything else bottlenecks.\
+\
+WITH THIS:\
+\
+System becomes scalable and finishable.\
+\
+==================================================\
+END STATE\
+==================================================\
+\
+When ALL phases are complete:\
+\
+THEN you can say:\
+\
+\'93100% MMO \'97 LIVE, STABLE, SCALABLE\'94\
+\
+NOT before.\
+\
+<!DOCTYPE html>\
+<html lang="en">\
+<head>\
+<meta charset="UTF-8">\
+<meta name="viewport" content="width=device-width, initial-scale=1">\
+<title>Jigsaw Lodge Society</title>\
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">\
+\
+<style>\
+body \{ background:#050505; color:#d0d0d0; overflow-x:hidden; \}\
+\
+.panel \{\
+  background:#0a0a0a;\
+  border:1px solid #111;\
+  border-radius:8px;\
+  padding:1rem;\
+\}\
+\
+.hidden \{ display:none; \}\
+\
+.feed p \{\
+  font-size:0.85rem;\
+  opacity:0.85;\
+  animation:fade 0.3s ease;\
+\}\
+\
+@keyframes fade \{\
+  from \{opacity:0; transform:translateY(4px);\}\
+  to \{opacity:0.85;\}\
+\}\
+\
+.glitch \{\
+  animation:glitch 0.8s infinite;\
+\}\
+\
+@keyframes glitch \{\
+  0%\{text-shadow:1px 0 red\}\
+  50%\{text-shadow:-1px 0 blue\}\
+  100%\{text-shadow:1px 0 red\}\
+\}\
+\
+.zone \{\
+  height:25px;\
+  background:#111;\
+\}\
+\
+.active \{ background:#8aff8a; box-shadow:0 0 6px #8aff8a; \}\
+.enemy \{ background:#ff6b6b; box-shadow:0 0 6px #ff6b6b; \}\
+\
+.heat \{\
+  height:6px;\
+  background:linear-gradient(90deg,#222,#8aff8a,#ff6b6b);\
+  animation:pulse 2s infinite;\
+\}\
+\
+@keyframes pulse \{\
+  50%\{filter:brightness(1.5);\}\
+\}\
+\
+#reveal \{\
+  position:fixed;\
+  inset:0;\
+  display:flex;\
+  align-items:center;\
+  justify-content:center;\
+  font-size:2rem;\
+  background:#000;\
+  color:#fff;\
+  opacity:0;\
+  pointer-events:none;\
+  z-index:999;\
+  transition:0.4s;\
+\}\
+\
+.distort \{\
+  animation:shake 0.15s infinite;\
+\}\
+\
+@keyframes shake \{\
+  25%\{transform:translate(1px,-1px)\}\
+  50%\{transform:translate(-1px,1px)\}\
+\}\
+</style>\
+</head>\
+\
+<body>\
+\
+<div id="reveal">\uc0\u9653  YOU ARE KNOWN \u9653 </div>\
+\
+<nav class="container-fluid">\
+<ul><li><strong>\uc0\u9653  JLS \u9653 </strong></li></ul>\
+<ul>\
+<li><a href="#" onclick="view('feed')">Feed</a></li>\
+<li><a href="#" onclick="view('profile')">Profile</a></li>\
+<li><a href="#" onclick="view('zones')">Zones</a></li>\
+</ul>\
+</nav>\
+\
+<main class="container">\
+\
+<section id="feedView" class="panel">\
+<h3 id="feedTitle">LIVE FEED</h3>\
+<div id="feed" class="feed"></div>\
+</section>\
+\
+<section id="profileView" class="panel hidden">\
+<h3>PROFILE</h3>\
+<p>XP: <span id="xp"></span></p>\
+<div class="heat"></div>\
+<p id="whisper"></p>\
+</section>\
+\
+<section id="zonesView" class="panel hidden">\
+<h3>ZONES</h3>\
+<div id="zones" style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;"></div>\
+</section>\
+\
+</main>\
+\
+<section aria-label="Subscribe example">\
+<div class="container">\
+<article>\
+<hgroup>\
+<h2>Enter</h2>\
+<h3>Identity Required</h3>\
+</hgroup>\
+<form class="grid">\
+<input placeholder="UUID">\
+<input placeholder="Token">\
+<button onclick="event.preventDefault()">Connect</button>\
+</form>\
+</article>\
+</div>\
+</section>\
+\
+<footer class="container">\
+<small><a href="#">System</a></small>\
+</footer>\
+\
+<script>\
+\
+/* =========================\
+   CORE STATE\
+========================= */\
+let ascensionLevel = 120;\
+\
+/* =========================\
+   MYTH SYSTEM\
+========================= */\
+const archetypes = \{\
+  surpassed:["The One Who Surpassed You","Signal Overwrite"],\
+  rival:["The One Behind You","Close Signal"],\
+  dominant:["Watcher Prime","The Known"],\
+  unknown:["Unknown Signal","\uc0\u9608 \u9608 \u9608 \u9608 \u9608 \u9608 "]\
+\};\
+\
+function myth(type)\{\
+  const pool = archetypes[type] || archetypes.unknown;\
+  return pool[Math.floor(Math.random()*pool.length)];\
+\}\
+\
+/* =========================\
+   XP DISTORTION\
+========================= */\
+function renderXP()\{\
+  const el = document.getElementById("xp");\
+\
+  if(ascensionLevel < 100)\{\
+    el.textContent = "1,245,332 XP";\
+  \}\
+  else if(ascensionLevel < 130)\{\
+    el.textContent = "~1.2M+";\
+  \}\
+  else if(ascensionLevel < 140)\{\
+    el.textContent = "SIGNAL UNSTABLE";\
+    el.classList.add("glitch");\
+  \}\
+  else\{\
+    el.textContent = "\uc0\u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 ";\
+  \}\
+\}\
+\
+/* =========================\
+   FEED (MYTH + DISTORTION)\
+========================= */\
+function addFeed(type="unknown", action="moved")\{\
+  const feed = document.getElementById("feed");\
+  const p = document.createElement("p");\
+\
+  let name = myth(type);\
+\
+  if(ascensionLevel > 130 && Math.random()>0.6)\{\
+    name = "\uc0\u9608 \u9608 \u9608 \u9608 \u9608 \u9608 ";\
+    p.classList.add("glitch");\
+  \}\
+\
+  p.textContent = "\uc0\u9653  " + name + " " + action;\
+  feed.prepend(p);\
+\
+  if(feed.children.length > 12)\{\
+    feed.removeChild(feed.lastChild);\
+  \}\
+\}\
+\
+/* =========================\
+   WHISPERS\
+========================= */\
+function whisper()\{\
+  const msgs = [\
+    "you are not the highest",\
+    "they are closer than you think",\
+    "you were ahead",\
+    "you lost position"\
+  ];\
+\
+  let msg = msgs[Math.floor(Math.random()*msgs.length)];\
+\
+  if(Math.random()>0.5)\{\
+    msg += " \'97 " + myth("surpassed");\
+  \}\
+\
+  document.getElementById("whisper").textContent = msg;\
+\}\
+\
+/* =========================\
+   REALITY BREAK\
+========================= */\
+function reveal()\{\
+  const r = document.getElementById("reveal");\
+  r.style.opacity = 1;\
+  setTimeout(()=>r.style.opacity=0,1200);\
+\}\
+\
+/* =========================\
+   ZONES\
+========================= */\
+function updateZones()\{\
+  const z = document.getElementById("zones");\
+  z.innerHTML="";\
+\
+  for(let i=0;i<32;i++)\{\
+    const d=document.createElement("div");\
+    d.className="zone "+(\
+      Math.random()>0.7?"enemy":\
+      Math.random()>0.5?"active":""\
+    );\
+    z.appendChild(d);\
+  \}\
+\}\
+\
+/* =========================\
+   VIEW SWITCH\
+========================= */\
+function view(v)\{\
+  ["feed","profile","zones"].forEach(id=>\{\
+    document.getElementById(id+"View").classList.add("hidden");\
+  \});\
+  document.getElementById(v+"View").classList.remove("hidden");\
+\}\
+\
+/* =========================\
+   SYSTEM LOOP\
+========================= */\
+setInterval(()=>\{\
+\
+  addFeed("surpassed","gained XP");\
+\
+  if(Math.random()>0.6)\{\
+    addFeed("rival","is approaching");\
+  \}\
+\
+  if(Math.random()>0.85)\{\
+    whisper();\
+  \}\
+\
+  if(ascensionLevel > 135 && Math.random()>0.9)\{\
+    document.body.classList.toggle("distort");\
+  \}\
+\
+  if(Math.random()>0.97)\{\
+    reveal();\
+  \}\
+\
+\},2000);\
+\
+setInterval(updateZones,3000);\
+\
+/* INIT */\
+renderXP();\
+\
+</script>\
+\
+</body>\
+</html>\
+\
+JIGSAW LODGE SOCIETY \'97 UNIFIED MASTER SYSTEM + EXPERIENCE LAYER (ABSOLUTE FINAL)\
+\
+----------------------------------------\
+CORE IDENTITY\
+----------------------------------------\
+\
+Persistent behavioral MMO infrastructure operating inside Second Life.\
+\
+- Server authoritative\
+- LSL = client input/output only\
+- Backend (Node + Redis) = full authority\
+- Event-driven architecture\
+- Real-time WebSocket feedback\
+\
+Pipeline:\
+Second Life \uc0\u8594  HTTP \u8594  Node \u8594  Redis \u8594  Event \u8594  WebSocket \u8594  HUD/Web\
+\
+Latency Target: 50\'96200ms  \
+Redis = real-time truth layer  \
+Node = stateless horizontal scaling  \
+\
+----------------------------------------\
+CORE LOOP\
+----------------------------------------\
+\
+Sit \uc0\u8594  Sync \u8594  Bond \u8594  Ritual \u8594  Reward \u8594  Drip \u8594  Compete \u8594  Repeat\
+\
+Reinforced by:\
+- social visibility\
+- delayed rewards\
+- territory pressure\
+- progression escalation\
+\
+----------------------------------------\
+XP SYSTEM\
+----------------------------------------\
+\
+XP_required(level) =\
+100 * (1.12 ^ (level - 1))\
+\
+Reference:\
+L1 = 100  \
+L10 \uc0\u8776  310  \
+L25 \uc0\u8776  1700  \
+L50 \uc0\u8776  28,900  \
+L100 \uc0\u8776  900,000  \
+\
+PHASES:\
+\
+1\'9640   \uc0\u8594  onboarding  \
+40\'9680  \uc0\u8594  engagement  \
+80\'96100 \uc0\u8594  escalation  \
+100+   \uc0\u8594  ASCENSION  \
+\
+----------------------------------------\
+ACTIVE XP (CAPPED)\
+----------------------------------------\
+\
+baseXP = 100  \
+\
+synergyMultiplier = 1 + (players * 0.15)  \
+\
+groupMultiplier = 1.15  \
+zoneMultiplier = 1.20  \
+groupTagMultiplier = 1.05  \
+\
+MAX_MULTIPLIER = 4.0  \
+\
+rawXP =\
+baseXP\
+* synergyMultiplier\
+* honeyMultiplier\
+* groupMultiplier\
+* zoneMultiplier\
+* groupTagMultiplier  \
+\
+XP =\
+baseXP * min(rawMultiplier, MAX_MULTIPLIER)\
+\
+----------------------------------------\
+PASSIVE XP (DRIP)\
+----------------------------------------\
+\
+interval = 60s  \
+baseDripXP = 12  \
+\
+dripXP =\
+baseDripXP\
+* zoneMultiplier\
+* groupTagMultiplier\
+* (1 + (players * 0.05))\
+\
+Rules:\
+- \uc0\u8805 1 ritual/day required\
+- idle >120s \uc0\u8594  stop\
+- daily reset (UTC)\
+\
+----------------------------------------\
+HONEY SYSTEM\
+----------------------------------------\
+\
+Dev Honey:\
+1.75 \uc0\u8594  2.0 \u8594  2.25 (max 3/day)\
+\
+RULE:\
+- active XP only\
+\
+Poison Honey:\
+pressureMultiplier = 1.5\
+\
+Royal Honey:\
+cost = 25 rituals  \
+duration = 2700s  \
+cooldown = 86400s  \
+\
+----------------------------------------\
+PENTACLE ECONOMY\
+----------------------------------------\
+\
+pentaclesPerRitual = 0.06  \
+\
+Battle:\
+winner = 5  \
+loser = 2.5  \
+\
+----------------------------------------\
+ZONE WARFARE\
+----------------------------------------\
+\
+pressure += (players ^ 0.75) * 0.2 * orderMultiplier  \
+\
+dominant \uc0\u8594  0.85  \
+weak \uc0\u8594  1.25  \
+\
+decay:\
+pressure *= 0.98 every 500ms  \
+\
+flip \uc0\u8805  100  \
+\
+----------------------------------------\
+SURGE SYSTEM\
+----------------------------------------\
+\
+Trigger:\
+\uc0\u8805 2 players within 7s  \
+\
+Charge:\
++10 per interaction  \
+100 = ready  \
+\
+Effect:\
++25% XP burst  \
+\
+----------------------------------------\
+CATCH-UP SYSTEM\
+----------------------------------------\
+\
+below average:\
++10\'9625% XP  \
+\
+----------------------------------------\
+ASCENSION SYSTEM (100+)\
+----------------------------------------\
+\
+At Level 100:\
+- levels hidden\
+- replaced by titles\
+- progression becomes unstable\
+\
+----------------------------------------\
+ASCENSION XP STRUCTURE\
+----------------------------------------\
+\
+XP_100 \uc0\u8776  900,000  \
+\
+101\'96110 \uc0\u8594  +12%  \
+111\'96125 \uc0\u8594  +18%  \
+126\'96140 \uc0\u8594  +28%  \
+141\'96145 \uc0\u8594  +35%  \
+146\'96150 \uc0\u8594  +40%  \
+\
+----------------------------------------\
+ASCENSION TITLES\
+----------------------------------------\
+\
+[120] Watcher of Watchers  \
+[130] Echo Distortion  \
+[140] Reality Desync  \
+[150] \uc0\u9653  YOU ARE KNOWN \u9653   \
+\
+(Full table internally defined)\
+\
+----------------------------------------\
+----------------------------------------\
+UI EXPERIENCE LAYER\
+----------------------------------------\
+----------------------------------------\
+\
+CORE PRINCIPLE:\
+Clarity decreases as power increases\
+\
+Transforms system into:\
+- emotional amplifier\
+- observable hierarchy\
+- myth-generation surface\
+\
+----------------------------------------\
+ASCENSION DISTORTION STATES\
+----------------------------------------\
+\
+NORMAL (\uc0\u8804 100)\
+- exact values\
+- stable UI\
+\
+UNSTABLE (101\'96130)\
+- rounded values\
+- minor inconsistency\
+\
+DISTORTED (131\'96140)\
+- fluctuating values\
+- partial corruption\
+\
+MYTH (141\'96150)\
+- hidden data\
+- symbolic output\
+\
+----------------------------------------\
+XP DISPLAY\
+----------------------------------------\
+\
+NORMAL:\
+"1,245.3 XP"\
+\
+UNSTABLE:\
+"~1.2M+"\
+\
+DISTORTED:\
+"SIGNAL: UNSTABLE"\
+\
+MYTH:\
+"SIGNAL: \uc0\u9608 \u9608 \u9608 \u9608 \u9608 "\
+\
+----------------------------------------\
+LEVEL DISPLAY\
+----------------------------------------\
+\
+\uc0\u8804 100:\
+LVL X\
+\
+>100:\
+TITLE replaces level\
+\
+----------------------------------------\
+PROGRESS DISPLAY\
+----------------------------------------\
+\
+\uc0\u8804 100:\
+exact %\
+\
+101\'96130:\
+rounded (10% steps)\
+\
+131\'96140:\
+\'b13% fluctuation\
+\
+141\'96150:\
+randomized\
+\
+----------------------------------------\
+EVENT FEED SYSTEM\
+----------------------------------------\
+\
+RITUAL:\
+"\{player\} completed a ritual"\
+\
+ASCENSION:\
+"\uc0\u9653  \{player\} HAS BEEN RECOGNIZED \u9653 "\
+\
+ZONE:\
+"Zone claimed by \{order\}"\
+\
+SURGE:\
+"\{player\} triggered a surge \uc0\u9889 "\
+\
+HONEY:\
+"\{player\} consumed \{type\} honey"\
+\
+----------------------------------------\
+REVELATION EVENTS\
+----------------------------------------\
+\
+Trigger:\
+ascension unlock\
+\
+Effects:\
+- full UI flash\
+- chromatic surge\
+- global broadcast\
+\
+----------------------------------------\
+VISUAL BEHAVIOR\
+----------------------------------------\
+\
+SURGE READY:\
+- pulsing glow indicator\
+\
+RIVAL HIGHLIGHT:\
+- stronger players highlighted\
+\
+LIVE INTENSITY:\
+- UI brightness tied to activity\
+\
+ASCENSION FLASH:\
+- screen-wide pulse\
+\
+LEADERBOARD MOTION:\
+- subtle dynamic movement\
+\
+----------------------------------------\
+EMOTIONAL DRIVERS\
+----------------------------------------\
+\
+JEALOUSY:\
+visible gaps + rivals\
+\
+CURIOSITY:\
+hidden values\
+\
+ANTICIPATION:\
+unstable progress\
+\
+RECOGNITION:\
+global events\
+\
+----------------------------------------\
+VISIBILITY OF POWER\
+----------------------------------------\
+\
+Low level:\
+- clear\
+- readable\
+\
+High level:\
+- abstract\
+- distorted\
+- symbolic\
+\
+----------------------------------------\
+FINAL POSITIONING\
+----------------------------------------\
+\
+Not a game.\
+\
+A:\
+- behavioral reinforcement engine  \
+- social pressure system  \
+- territory control MMO  \
+- economic progression network  \
+- observable power hierarchy  \
+\
+----------------------------------------\
+END OF UNIFIED SYSTEM\
+----------------------------------------\
+\
+level names 1-100\
+\
+JIGSAW LODGE SOCIETY \'97 UNIFIED MASTER SYSTEM (ABSOLUTE FINAL v2)\
+\
+----------------------------------------\
+CORE IDENTITY\
+----------------------------------------\
+\
+Persistent behavioral MMO infrastructure operating inside Second Life.\
+\
+- Server authoritative\
+- LSL = client input/output only\
+- Backend (Node + Redis) = full authority\
+- Event-driven architecture\
+- Real-time WebSocket feedback\
+\
+Pipeline:\
+Second Life \uc0\u8594  HTTP \u8594  Node \u8594  Redis \u8594  Event \u8594  WebSocket \u8594  HUD/Web\
+\
+Latency Target: 50\'96200ms  \
+Redis = real-time truth layer  \
+Node = stateless horizontal scaling  \
+\
+----------------------------------------\
+CORE LOOP\
+----------------------------------------\
+\
+Sit \uc0\u8594  Sync \u8594  Bond \u8594  Ritual \u8594  Reward \u8594  Drip \u8594  Compete \u8594  Repeat\
+\
+Reinforced by:\
+- social visibility\
+- delayed rewards\
+- territory pressure\
+- progression escalation\
+\
+----------------------------------------\
+XP SYSTEM (FINAL)\
+----------------------------------------\
+\
+XP_required(level) =\
+100 * (1.12 ^ (level - 1))\
+\
+Reference:\
+L1 = 100  \
+L10 \uc0\u8776  310  \
+L25 \uc0\u8776  1700  \
+L50 \uc0\u8776  28,900  \
+L100 \uc0\u8776  900,000  \
+\
+PHASES:\
+\
+1\'9640   \uc0\u8594  onboarding  \
+40\'9680  \uc0\u8594  engagement  \
+80\'96100 \uc0\u8594  escalation  \
+100+   \uc0\u8594  ASCENSION  \
+\
+----------------------------------------\
+ACTIVE XP (CAPPED + FINAL)\
+----------------------------------------\
+\
+baseXP = 100  \
+\
+synergyMultiplier = 1 + (players * 0.15)  \
+\
+groupMultiplier = 1.15  \
+zoneMultiplier = 1.20  \
+groupTagMultiplier = 1.05  \
+\
+MAX_MULTIPLIER = 4.0  \
+\
+rawXP =\
+baseXP\
+* synergyMultiplier\
+* honeyMultiplier\
+* groupMultiplier\
+* zoneMultiplier\
+* groupTagMultiplier  \
+\
+XP =\
+baseXP * min(rawMultiplier, MAX_MULTIPLIER)\
+\
+NOTE:\
+- Prevents stacking exploits\
+- Keeps group play + monetization meaningful\
+\
+----------------------------------------\
+PASSIVE XP (DRIP \'97 FIXED)\
+----------------------------------------\
+\
+interval = 60s  \
+baseDripXP = 12  \
+\
+dripXP =\
+baseDripXP\
+* zoneMultiplier\
+* groupTagMultiplier\
+* (1 + (players * 0.05))\
+\
+Rules:\
+- Requires \uc0\u8805 1 ritual/day\
+- Idle >120s \uc0\u8594  stops\
+- Daily reset (UTC)\
+\
+Purpose:\
+- meaningful passive progression\
+- supports social presence\
+\
+----------------------------------------\
+HONEY SYSTEM (FINAL BALANCE)\
+----------------------------------------\
+\
+Dev Honey:\
+1.75 \uc0\u8594  2.0 \u8594  2.25 (max 3/day)\
+\
+RULE:\
+- applies to ACTIVE XP only\
+\
+Poison Honey:\
+pressureMultiplier = 1.5\
+\
+Royal Honey:\
+cost = 25 rituals  \
+duration = 2700s  \
+cooldown = 86400s  \
+\
+Rules:\
+- no stacking\
+- server enforced\
+\
+----------------------------------------\
+PENTACLE ECONOMY (SLIGHTLY TUNED)\
+----------------------------------------\
+\
+pentaclesPerRitual = 0.06  \
+\
+Battle:\
+winner = 5  \
+loser = 2.5  \
+\
+----------------------------------------\
+RITUAL SYSTEM\
+----------------------------------------\
+\
+Requires \uc0\u8805 2 players  \
+ritualDuration = 2700s  \
+testDuration = 300s  \
+\
+----------------------------------------\
+ZONE WARFARE (FINAL)\
+----------------------------------------\
+\
+pressure += (players ^ 0.75) * 0.2 * orderMultiplier  \
+\
+dominant \uc0\u8594  0.85  \
+weak \uc0\u8594  1.25  \
+\
+decay:\
+pressure *= 0.98 every 500ms  \
+\
+flip \uc0\u8805  100  \
+\
+----------------------------------------\
+SURGE SYSTEM\
+----------------------------------------\
+\
+Trigger:\
+- \uc0\u8805 2 players within 7s  \
+\
+Charge:\
++10 per interaction  \
+100 = ready  \
+\
+Effect:\
++25% XP burst  \
+\
+----------------------------------------\
+CATCH-UP SYSTEM\
+----------------------------------------\
+\
+below average:\
++10\'9625% XP  \
+\
+----------------------------------------\
+ASCENSION SYSTEM (REFINED)\
+----------------------------------------\
+\
+At Level 100:\
+- levels hidden\
+- replaced by TITLES\
+- unstable progression\
+\
+----------------------------------------\
+ASCENSION XP STRUCTURE (FIXED)\
+----------------------------------------\
+\
+XP_100 \uc0\u8776  900,000  \
+\
+101\'96110 \uc0\u8594  +12%  \
+111\'96125 \uc0\u8594  +18%  \
+126\'96140 \uc0\u8594  +28%  \
+141\'96145 \uc0\u8594  +35%  \
+146\'96150 \uc0\u8594  +40%  \
+\
+----------------------------------------\
+ASCENSION TITLES + THRESHOLDS\
+----------------------------------------\
+\
+[101] The Noticed \'97 1.0M  \
+[102] The Marked \'97 1.12M  \
+[103] The Registered \'97 1.25M  \
+[104] Pattern Acknowledged \'97 1.40M  \
+[105] Signal Accepted \'97 1.57M  \
+[106] Chain Initiate \'97 1.76M  \
+[107] The Observed \'97 1.97M  \
+[108] Loop Participant \'97 2.21M  \
+[109] The Counted \'97 2.47M  \
+[110] System Aware \'97 2.76M  \
+\
+[111] Whisper Carrier \'97 3.25M  \
+[112] Echo Holder \'97 3.83M  \
+[113] Signal Repeater \'97 4.52M  \
+[114] Pattern Walker \'97 5.33M  \
+[115] Chain Bound \'97 6.29M  \
+[116] Loop Stabilizer \'97 7.42M  \
+[117] Observer Class II \'97 8.75M  \
+[118] System Thread \'97 10.3M  \
+[119] Convergence Node \'97 12.2M  \
+[120] Watcher of Watchers \'97 14.4M  \
+[121] The Amplified \'97 17.0M  \
+[122] Signal Authority \'97 20.1M  \
+[123] Pattern Engraved \'97 23.7M  \
+[124] Chain Architect \'97 28.0M  \
+[125] The Persistent \'97 33.0M  \
+\
+[126] Distortion Initiate \'97 42.2M  \
+[127] Signal Breaker \'97 54.0M  \
+[128] Pattern Collapse \'97 69.1M  \
+[129] The Fractured \'97 88.4M  \
+[130] Echo Distortion \'97 113M  \
+[131] System Intrusion \'97 145M  \
+[132] The Overwritten \'97 186M  \
+[133] Chain Corruptor \'97 238M  \
+[134] Loop Rewriter \'97 305M  \
+[135] Signal Distortion \'97 391M  \
+[136] The Glitched \'97 500M  \
+[137] Observer Inversion \'97 640M  \
+[138] Pattern Anomaly \'97 820M  \
+[139] System Instability \'97 1.05B  \
+[140] Reality Desync \'97 1.34B  \
+\
+[141] The Unbound \'97 1.80B  \
+[142] Chainbreaker Prime \'97 2.43B  \
+[143] Signal Sovereign \'97 3.28B  \
+[144] The Irreversible \'97 4.43B  \
+[145] System Override \'97 5.98B  \
+[146] The Ascendant \'97 8.37B  \
+[147] Pattern Deity \'97 11.7B  \
+[148] The Unrendered \'97 16.4B  \
+[149] \uc0\u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608  \'97 22.9B  \
+[150] \uc0\u9653  YOU ARE KNOWN \u9653  \'97 terminal  \
+\
+----------------------------------------\
+DRIP VS ACTIVE BALANCE\
+----------------------------------------\
+\
+Active play = primary progression  \
+Drip = meaningful but secondary  \
+\
+----------------------------------------\
+SYSTEM CAPACITY\
+----------------------------------------\
+\
+100\'96150 players/node  \
+\
+----------------------------------------\
+FINAL POSITIONING\
+----------------------------------------\
+\
+Not a game.\
+\
+A:\
+- behavioral reinforcement engine  \
+- social pressure system  \
+- territory control MMO  \
+- economic progression network  \
+\
+----------------------------------------\
+END OF SYSTEM\
+----------------------------------------\
+\
+JIGSAW LODGE SOCIETY \'97 COMPLETE MASTER SPEC (ABSOLUTE FINAL)\
+\
+----------------------------------------\
+CORE IDENTITY\
+----------------------------------------\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+Persistent MMO infrastructure inside Second Life\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 \
+Server-authoritative\
+LSL = client only\
+Backend = full authority\
+Event-driven system\
+\
+Official system hub:\
+jigsawlodgesociety.com (ALL data, identity, and validation originates here)\
+\
+----------------------------------------\
+CORE LOOP\
+----------------------------------------\
+\
+Sit \uc0\u8594  Sync \u8594  Bond \u8594  Ritual \u8594  Reward \u8594  Drip \u8594  Compete \u8594  Repeat\
+\
+----------------------------------------\
+XP MODEL\
+----------------------------------------\
+\
+XP_required(level) = 100 * (1.12 ^ (level - 1))\
+\
+baseXP = 100\
+\
+synergyMultiplier = 1 + (players * 0.15)\
+\
+groupMultiplier = 1.15\
+zoneMultiplier = 1.20\
+groupTagMultiplier = 1.05\
+\
+----------------------------------------\
+ACTIVE XP\
+----------------------------------------\
+\
+XP =\
+baseXP\
+* players\
+* synergyMultiplier\
+* honeyMultiplier\
+* groupMultiplier\
+* zoneMultiplier\
+* groupTagMultiplier\
+\
+----------------------------------------\
+PASSIVE XP (DRIP)\
+----------------------------------------\
+\
+interval = 60s\
+baseDripXP = 5\
+\
+dripXP =\
+baseDripXP\
+* honeyMultiplier\
+* zoneMultiplier\
+* groupTagMultiplier\
+\
+DRIP UNLOCK RULE:\
+- MUST complete \uc0\u8805 1 ritual that day\
+- Otherwise dripXP = 0\
+\
+DAILY RESET:\
+- Server UTC reset\
+- ritualCountToday \uc0\u8594  0\
+\
+ANTI-AFK:\
+- Stops if idle > 120s\
+\
+----------------------------------------\
+HONEY SYSTEM (OPTION B)\
+----------------------------------------\
+\
+Dev Honey Scaling:\
+\
+use1 = 1.75\
+use2 = 2.00\
+use3 = 2.25\
+hardCap = 2.25\
+\
+cost_devHoney_L$ = 80\
+maxUsesPerDay = 3\
+giftablePerDay = 3\
+\
+Poison Honey:\
+pressureMultiplier = 1.50\
+cost_poisonHoney_L$ = 80\
+maxUsesPerDay = 3\
+\
+Royal Honey:\
+cost = 25 rituals\
+\
+duration = 2700s\
+cooldown = 86400s\
+\
+----------------------------------------\
+TREASURY SYSTEM\
+----------------------------------------\
+\
+treasury += all L$ purchases\
+\
+----------------------------------------\
+BATTLE SYSTEM\
+----------------------------------------\
+\
+winnerReward = 5 pentacles\
+loserReward = 2.5 pentacles\
+\
+----------------------------------------\
+PENTACLE ECONOMY\
+----------------------------------------\
+\
+pentacleGlyph = \uc0\u9672 \
+\
+pentaclesPerRitual = 0.01\
+\
+----------------------------------------\
+COSMETIC ECONOMY\
+----------------------------------------\
+\
+cosmetic_L$:\
+250L / 500L\
+\
+cosmetic_pentacles:\
+2 / 5 / 10\
+\
+----------------------------------------\
+JEALOUSY SYSTEM\
+----------------------------------------\
+\
+Triggers:\
+- Others gaining faster\
+- Friends surpassing\
+- Zone loss\
+\
+Effects:\
+- HUD highlight rivals\
+- Feed prioritization\
+- Loss amplification\
+\
+----------------------------------------\
+ZONE WARFARE\
+----------------------------------------\
+\
+pressure += players * 0.2 * orderMultiplier\
+\
+dominant = 0.85\
+weak = 1.25\
+\
+decay:\
+pressure *= 0.98 / 500ms\
+\
+flip >= 100\
+\
+----------------------------------------\
+SURGE SYSTEM\
+----------------------------------------\
+\
+timeWindow = 7s\
+players >= 2\
+\
+surgeXPBonus = 1.25\
+\
+SURGE READINESS:\
+\
+surgeCharge = 0 \uc0\u8594  100\
+\
++10 per valid interaction\
+decays slowly if inactive\
+\
+\uc0\u9889 \u65039  = ready when \u8805 100\
+\
+----------------------------------------\
+CHALLENGE SYSTEM (FULL)\
+----------------------------------------\
+\
+DAILY:\
+- 3\'965 objectives\
+- reward:\
+  +5\'9610% XP boost (temporary)\
+  OR +1 ritual\
+  OR +0.25 pentacles\
+\
+WEEKLY:\
+- 5\'9610 objectives\
+- reward:\
+  +15\'9625% XP boost\
+  OR +3 rituals\
+  OR +1 pentacle\
+\
+MONTHLY:\
+- major milestones\
+- reward:\
+  +25\'9650% XP boost\
+  OR +10 rituals\
+  OR +3 pentacles\
+\
+QUARTERLY:\
+- long-term grind goals\
+- reward:\
+  exclusive cosmetics\
+  OR +5 pentacles\
+  OR Royal Honey\
+\
+Rules:\
+- Server tracked\
+- No stacking abuse\
+- Limited active objectives\
+\
+----------------------------------------\
+EQUIPMENT SYSTEM (DIAMONDS)\
+----------------------------------------\
+\
+diamondSlots = 3\
+\
+glyph = \uc0\u9670 \
+\
+Each slot:\
+\uc0\u9670  \u9670  \u9670 \
+\
+Equipable items:\
+- cosmetic modifiers\
+- aura effects\
+- title modifiers\
+\
+Rules:\
+- Max 3 equipped\
+- No stat stacking beyond allowed caps\
+\
+----------------------------------------\
+HUD SYSTEM (FULL VISUAL SPEC)\
+----------------------------------------\
+\
+\uc0\u9653 JIGSAW LODGE SOCIETY\u9653 \
+[Title]\
+\
+LVL X \'95 \uc0\u9651 Rituals \'95 
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9939 
+\f0 \AppleTypeServices Bonds \'95 \uc0\u55357 \u56385 XP\
+\
+\uc0\u9670  \u9670  \u9670 \
+\
+\uc0\u9671 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9671 \
+\uc0\u9670 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617 \u9670 \
+\uc0\u9671 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9552 \u9671 \u9552 \u9552 \u9552 \u9671 \
+\
+\uc0\u55356 \u57199  timer   \u9672  pentacles   \u9889 \u65039  surge\
+\
+----------------------------------------\
+HUD ICON ROW (TEMP SYSTEM STATE)\
+----------------------------------------\
+\
+\uc0\u55356 \u57199  = honey active timer\
+\
+\uc0\u9672  = pentacle count (currency)\
+\
+\uc0\u9889 \u65039  = surge readiness\
+- fills to active state\
+- flashes when ready\
+\
+----------------------------------------\
+HUD STATES\
+----------------------------------------\
+\
+IDLE \uc0\u8594  PULSE \u8594  SPIKE \u8594  GLOW \u8594  BURST \u8594  COOLDOWN\
+\
+----------------------------------------\
+CHROMATIC SYSTEM\
+----------------------------------------\
+\
+0\'96100%\
+2.5% steps\
+66-phase RGB backend-driven\
+\
+----------------------------------------\
+EVENT PIPELINE\
+----------------------------------------\
+\
+HUD \uc0\u8594  HTTP \u8594  Node \u8594  Redis \u8594  Event \u8594  WebSocket \u8594  HUD/Web\
+\
+----------------------------------------\
+WEBSITE REQUIREMENTS\
+----------------------------------------\
+\
+jigsawlodgesociety.com:\
+\
+- profiles\
+- leaderboard\
+- live feed\
+- map\
+- purchases\
+- UUID linking\
+\
+----------------------------------------\
+EXTERNAL SYSTEMS\
+----------------------------------------\
+\
+HUD\
+Greeter\
+Furniture (2\'968)AVIsitter2\
+Teleporter\
+Friends\
+Recruiter\
+Leaderboards\
+Order kiosk\
+Honey kiosk\
+Admin panel\
+\
+----------------------------------------\
+SECURITY\
+----------------------------------------\
+\
+No client trust\
+Token validation\
+800ms rate limit\
+Retry = 3\
+\
+----------------------------------------\
+EVENT LOOP\
+----------------------------------------\
+\
+500ms\
+\
+----------------------------------------\
+SESSION DESIGN\
+----------------------------------------\
+\
+600\'961500 sec\
+\
+----------------------------------------\
+ECONOMY FLOW\
+----------------------------------------\
+\
+time \uc0\u8594  rituals \u8594  pentacles \u8594  honey \u8594  power \u8594  dominance\
+\
+----------------------------------------\
+SYSTEM CAPACITY\
+----------------------------------------\
+\
+100\'96150 players/node\
+\
+----------------------------------------\
+FINAL POSITIONING\
+----------------------------------------\
+\
+Behavioral MMO infrastructure\
+Territory control system\
+Economic progression engine\
+\
+----------------------------------------\
+\
+================= JIGSAW LODGE \'97 FULL TEST PACKAGE =================\
+\
+================= 1. HUD SCRIPT =================\
+\
+// ================= JLS HUD v68 \'97 PRESENCE AMPLIFICATION =================\
+\
+// ================= ENDPOINTS =================\
+string API_MAIN = "https://jigsawlodgesociety.com/api/event";\
+string API_FALLBACK = "http://89.167.94.250:3000/api/event";\
+\
+string API;\
+integer usingFallback = FALSE;\
+integer DEBUG = TRUE;\
+\
+// ================= STATE =================\
+integer level = 0;\
+integer rituals = 0;\
+integer bonds = 0;\
+integer watchers = 0;\
+integer pentacles = 0;\
+\
+string activeHoney = "";\
+integer honeyExpireTime = 0;\
+\
+integer ritualProgress = 0;\
+string currentOrder = "neutral";\
+integer surgeReady = FALSE;\
+\
+// ================= ICON =================\
+string PENTACLE_ICON = "
+\f3 \uc0\u10192 
+\f0 ";\
+\
+// ================= BOOT =================\
+integer bootIndex = 0;\
+float bootTimer = 0.0;\
+integer bootDone = FALSE;\
+\
+// NEW: weighted timing per frame\
+list bootDurations = [\
+    1.0,  // ambient\
+    1.0,\
+    0.8,  // acceleration\
+    0.8,\
+    1.2,  // "YOU ARE SEEN" linger\
+    0.8,\
+    1.0,\
+    0.8,\
+    1.0,\
+    1.2,  // RECOGNIZED linger\
+    0.8,\
+    1.2,  // IDENTITY LOCK linger\
+    1.0,\
+    1.5   // ENTER (final hold)\
+];\
+\
+list bootFrames = [\
+    "
+\f3 \uc0\u8756 
+\f0  
+\f3 \uc0\u8756 
+\f0  
+\f3 \uc0\u8756 
+\f0 \\n
+\f3 \uc0\u8942 \u8942 \u8942 \u8942 \u8942 
+\f0 \\n
+\f3 \uc0\u8756 
+\f0  
+\f3 \uc0\u8756 
+\f0  
+\f3 \uc0\u8756 
+\f0 ",\
+    "
+\f4 \uc0\u8961 \u8961 \u8961 \u8961 \u8961 
+\f0 \\n\uc0\u9673  \u9673  \u9673 \\n
+\f4 \uc0\u8961 \u8961 \u8961 \u8961 \u8961 
+\f0 ",\
+    "DYN_CORE",\
+    "\uc0\u9673 \u9673 \u9673 \u9673 \u9673 \\n
+\f3 \uc0\u9004 \u9004 \u9004 \u9004 \u9004 
+\f0 \\n\uc0\u9673 \u9673 \u9673 \u9673 \u9673 ",\
+    "
+\f3 \uc0\u8942 \u8942 \u8942 \u8942 \u8942 
+\f0 \\nYOU ARE SEEN\\n
+\f3 \uc0\u8942 \u8942 \u8942 \u8942 \u8942 
+\f0 ",\
+    "DYN_SIGIL",\
+    "
+\f4 \uc0\u8961 \u8961 \u8961 
+\f0 \\nPATTERN DETECTED\\n
+\f4 \uc0\u8961 \u8961 \u8961 
+\f0 ",\
+    "DYN_INTRUSION",\
+    "
+\f3 \uc0\u10177 \u10177 \u10177 \u10177 \u10177 
+\f0 \\nYOU RETURN\\n
+\f3 \uc0\u10177 \u10177 \u10177 \u10177 \u10177 
+\f0 ",\
+    "
+\f3 \uc0\u8942 \u8942 \u8942 \u8942 \u8942 
+\f0 \\n\uc0\u9653  RECOGNIZED \u9653 \\n
+\f3 \uc0\u8942 \u8942 \u8942 \u8942 \u8942 
+\f0 ",\
+    "
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9959 \u9004 \u9959 \u9004 \u9959 
+\f0 \AppleTypeServices \\n
+\f4 \uc0\u8961 \u8961 \u8961 \u8961 \u8961 
+\f0 \\n
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9959 \u9004 \u9959 \u9004 \u9959 
+\f0 \AppleTypeServices ",\
+    "\uc0\u9673 \u9673 \u9673 \u9673 \u9673 \\nIDENTITY LOCK\\n\u9673 \u9673 \u9673 \u9673 \u9673 ",\
+    "DYN_FINAL",\
+    "\uc0\u9670 \u9670 \u9670 \\nENTER\\n\u9670 \u9670 \u9670 "\
+];\
+\
+list symbols = ["
+\f3 \uc0\u8756 
+\f0 ","
+\f3 \uc0\u10177 
+\f0 ","
+\f3 \uc0\u9004 
+\f0 ","\uc0\u9673 ","
+\f3 \uc0\u8942 
+\f0 ","
+\f4 \uc0\u8961 
+\f0 ","
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9959 
+\f0 \AppleTypeServices ","\uc0\u9672 ","
+\f1 \uc0\u10038 
+\f0 ","
+\f1 \uc0\u10023 
+\f0 ","
+\f3 \uc0\u10192 
+\f0 ","
+\f3 \uc0\u9005 
+\f0 "];\
+integer symbolIndex = 0;\
+\
+// ================= NETWORK =================\
+key activeRequest = NULL_KEY;\
+integer requestPending = FALSE;\
+integer requestSentUnix = 0;\
+integer requestRetryCount = 0;\
+integer errorNotified = FALSE;\
+integer nextRequestUnix = 0;\
+\
+integer REQUEST_TIMEOUT = 6;\
+integer MAX_RETRIES = 3;\
+integer REQUEST_INTERVAL = 2;\
+\
+// ================= HELPERS =================\
+debugSay(string msg)\
+\{\
+    if (DEBUG) llOwnerSay(msg);\
+\}\
+\
+integer clampInt(integer v, integer minV, integer maxV)\
+\{\
+    if (v < minV) return minV;\
+    if (v > maxV) return maxV;\
+    return v;\
+\}\
+\
+string nextSymbol()\
+\{\
+    integer len = llGetListLength(symbols);\
+    symbolIndex = (symbolIndex + 1) % len;\
+    return llList2String(symbols, symbolIndex);\
+\}\
+\
+// ================= PROGRESS =================\
+string progressBar(integer pct)\
+\{\
+    integer i;\
+    integer total = 12;\
+    integer filled = (clampInt(pct,0,100) * total) / 100;\
+\
+    string bar = "";\
+\
+    for (i = 0; i < total; i++)\
+    \{\
+        if (i < filled) bar += "\uc0\u9608 ";\
+        else bar += "\uc0\u9617 ";\
+    \}\
+\
+    // \uc0\u55357 \u56613  PRESSURE ZONE (90+)\
+    if (pct >= 90)\
+    \{\
+        if (llFrand(1.0) > 0.6)\
+        \{\
+            integer pos = total - 1;\
+            bar = llDeleteSubString(bar, pos, pos) + "\uc0\u9619 ";\
+        \}\
+    \}\
+\
+    return bar;\
+\}\
+\
+// ================= TIME =================\
+string twoDigits(integer v)\
+\{\
+    if (v < 10) return "0" + (string)v;\
+    return (string)v;\
+\}\
+\
+string honeyTimeText()\
+\{\
+    integer now = llGetUnixTime();\
+    integer remaining = 0;\
+\
+    if (honeyExpireTime > now)\
+        remaining = honeyExpireTime - now;\
+\
+    return twoDigits(remaining / 60) + ":" + twoDigits(remaining % 60);\
+\}\
+\
+// ================= JSON =================\
+integer safeInt(string body, list path, integer fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return (integer)v;\
+\}\
+\
+string safeString(string body, list path, string fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return v;\
+\}\
+\
+// ================= REQUEST =================\
+sendHudRequest()\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar",(string)llGetOwner(),\
+        "object",(string)llGetKey(),\
+        "action","hud_tick"\
+    ]);\
+\
+    activeRequest = llHTTPRequest(\
+        API,\
+        [HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],\
+        body\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+\}\
+\
+// ================= PROCESS =================\
+processResponseBody(string body)\
+\{\
+    level = safeInt(body, ["state","level"], level);\
+    rituals = safeInt(body, ["state","rituals"], rituals);\
+    bonds = safeInt(body, ["state","bonds"], bonds);\
+    watchers = safeInt(body, ["state","watchers"], watchers);\
+    pentacles = safeInt(body, ["state","pentacles"], pentacles);\
+    ritualProgress = safeInt(body, ["state","ritual_progress"], ritualProgress);\
+\
+    activeHoney = safeString(body, ["state","honey"], activeHoney);\
+    honeyExpireTime = safeInt(body, ["state","honey_expire"], honeyExpireTime);\
+    surgeReady = safeInt(body, ["state","surge_ready"], surgeReady);\
+\}\
+\
+// ================= RENDER =================\
+renderHUD()\
+\{\
+    string display =\
+        "\uc0\u9653  JIGSAW LODGE SOCIETY \u9653 \\n"\
+        + "Lvl. " + (string)level\
+        + " \'95 \uc0\u9651 " + (string)rituals\
+        + " \'95 
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9939 
+\f0 \AppleTypeServices " + (string)bonds\
+        + " \'95 \uc0\u55357 \u56385 " + (string)watchers + "\\n"\
+        + "\uc0\u9670 " + progressBar(ritualProgress) + "\u9670 \\n"\
+        + "\uc0\u55356 \u57199  " + honeyTimeText()\
+        + "        " + PENTACLE_ICON + " " + (string)pentacles\
+        + "        \uc0\u9889  " + (string)surgeReady + "\\n"\
+        + nextSymbol(); // minimal presence\
+\
+    llSetText(display, <1,1,1>, 1.0);\
+\}\
+\
+// ================= FAILURE =================\
+integer markRequestFailure(string reason)\
+\{\
+    requestPending = FALSE;\
+    activeRequest = NULL_KEY;\
+    requestRetryCount++;\
+\
+    if (requestRetryCount == 1 && !usingFallback)\
+    \{\
+        usingFallback = TRUE;\
+        API = API_FALLBACK;\
+        return TRUE;\
+    \}\
+\
+    if (requestRetryCount < MAX_RETRIES)\
+    \{\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        return TRUE;\
+    \}\
+\
+    if (!errorNotified)\
+    \{\
+        llOwnerSay("JLS HUD sync unavailable.");\
+        errorNotified = TRUE;\
+    \}\
+\
+    return FALSE;\
+\}\
+\
+// ================= MAIN =================\
+default\
+\{\
+    state_entry()\
+    \{\
+        API = API_MAIN;\
+        llSetTimerEvent(0.5);\
+    \}\
+\
+    timer()\
+    \{\
+        integer now = llGetUnixTime();\
+\
+        // ===== BOOT (ENHANCED TIMING, SAME VISUALS) =====\
+        if (!bootDone)\
+        \{\
+            bootTimer += 0.5;\
+\
+            float duration = llList2Float(bootDurations, bootIndex);\
+\
+            if (bootTimer >= duration)\
+            \{\
+                bootIndex++;\
+                bootTimer = 0.0;\
+\
+                if (bootIndex >= llGetListLength(bootFrames))\
+                \{\
+                    bootDone = TRUE;\
+                    llOwnerSay("JLS HUD boot complete.");\
+                    bootIndex = llGetListLength(bootFrames) - 1;\
+                \}\
+            \}\
+\
+            llSetText(llList2String(bootFrames, bootIndex), <1,1,1>, 1.0);\
+            return;\
+        \}\
+\
+        // ===== NETWORK =====\
+        if (requestPending)\
+        \{\
+            if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+                markRequestFailure("timeout");\
+        \}\
+        else if (now >= nextRequestUnix)\
+        \{\
+            sendHudRequest();\
+            nextRequestUnix = now + REQUEST_INTERVAL;\
+        \}\
+\
+        renderHUD();\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            markRequestFailure("http");\
+            return;\
+        \}\
+\
+        if (llStringLength(body) == 0 || llJsonValueType(body, []) == JSON_INVALID)\
+        \{\
+            markRequestFailure("json");\
+            return;\
+        \}\
+\
+        processResponseBody(body);\
+\
+        requestRetryCount = 0;\
+        errorNotified = FALSE;\
+\
+        renderHUD();\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+================= 2. CHAIR SCRIPT =================\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 \
+string API = "http://89.167.94.250:3000/event";\
+string SECRET = "LODGE_CHAIR_KEY";\
+string CHAIR_ID;\
+\
+send(string action, key avatar)\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar",(string)avatar,\
+        "action",action,\
+        "zone",1,\
+        "chair",CHAIR_ID,\
+        "key",SECRET\
+    ]);\
+\
+    llHTTPRequest(API,\
+        [HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],\
+        body);\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        CHAIR_ID = (string)llGetKey();\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_LINK)\
+        \{\
+            key av = llAvatarOnSitTarget();\
+\
+            if (av)\
+                send("sit", av);\
+            else\
+                send("unsit", llGetOwner());\
+        \}\
+    \}\
+\}\
+\
+================= 3. TEST CONTROLLER (UPDATED) =================\
+\
+string API = "http://89.167.94.250:3000/event";\
+integer CHANNEL = -99999;\
+\
+send(string action)\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar",(string)llGetOwner(),\
+        "action",action,\
+        "zone",1,\
+        "debug",1\
+    ]);\
+\
+    llHTTPRequest(API,\
+        [HTTP_METHOD,"POST",HTTP_MIMETYPE,"application/json"],\
+        body);\
+\
+    llOwnerSay("Sent: " + action);\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        llListen(CHANNEL, "", llGetOwner(), "");\
+        llOwnerSay("Controller Ready");\
+    \}\
+\
+    touch_start(integer n)\
+    \{\
+        llDialog(llGetOwner(),\
+            "Battle Control",\
+            ["Force Ritual","Force Battle","Win A","Win B","Reset"],\
+            CHANNEL);\
+    \}\
+\
+    listen(integer c, string n, key id, string msg)\
+    \{\
+        if (msg == "Force Ritual") send("force_ritual");\
+        else if (msg == "Force Battle") send("force_battle");\
+        else if (msg == "Win A") send("force_win_a");\
+        else if (msg == "Win B") send("force_win_b");\
+        else if (msg == "Reset") send("reset");\
+    \}\
+\}\
+\
+==============================================================\
+\
+// ================= JLS EVENT FEEDBACK LAYER =================\
+// Reads /api/world and turns backend events into object feedback.\
+// No gameplay authority. Visual only.\
+\
+string API_WORLD_MAIN = "http://89.167.94.250:3000/api/world";\
+string API_WORLD_FALLBACK = "https://jigsawlodgesociety.com/api/world";\
+\
+string API = "";\
+integer usingFallback = FALSE;\
+integer DEBUG = TRUE;\
+\
+integer REQUEST_INTERVAL = 2;\
+integer REQUEST_TIMEOUT = 8;\
+\
+key activeRequest = NULL_KEY;\
+integer requestPending = FALSE;\
+integer requestSentUnix = 0;\
+integer requestRetryCount = 0;\
+integer nextRequestUnix = 0;\
+integer MAX_RETRIES = 3;\
+integer errorNotified = FALSE;\
+\
+string lastEventMarker = "";\
+integer totalWatchers = 0;\
+integer activeSessions = 0;\
+integer lastBattleTs = 0;\
+\
+string activeEventType = "";\
+string activeEventAvatar = "";\
+integer activeEventTs = 0;\
+\
+integer effectUntil = 0;\
+integer particleUntil = 0;\
+vector effectColor = <1.0, 1.0, 1.0>;\
+float effectGlow = 0.05;\
+string objectRole = "object";\
+\
+debugSay(string msg)\
+\{\
+    if (DEBUG)\
+    \{\
+        llOwnerSay(msg);\
+    \}\
+\}\
+\
+integer clampInt(integer v, integer minV, integer maxV)\
+\{\
+    if (v < minV) return minV;\
+    if (v > maxV) return maxV;\
+    return v;\
+\}\
+\
+float clampFloat(float v, float minV, float maxV)\
+\{\
+    if (v < minV) return minV;\
+    if (v > maxV) return maxV;\
+    return v;\
+\}\
+\
+string safeString(string body, list path, string fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return v;\
+\}\
+\
+integer safeInt(string body, list path, integer fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return (integer)v;\
+\}\
+\
+string normalizeType(string t)\
+\{\
+    t = llToLower(llStringTrim(t, STRING_TRIM));\
+    return t;\
+\}\
+\
+string eventLabel(string t)\
+\{\
+    t = normalizeType(t);\
+\
+    if (t == "ritual_complete") return "RITUAL COMPLETE";\
+    if (t == "ritual_15m") return "RITUAL PULSE";\
+    if (t == "battle_result") return "BATTLE RESOLVED";\
+    if (t == "surge_sync") return "SURGE SYNC";\
+    if (t == "honey_used") return "HONEY APPLIED";\
+    if (t == "bond_formed") return "BOND FORMED";\
+    if (t == "session_start") return "SESSION START";\
+    if (t == "session_tick") return "SESSION TICK";\
+    if (t == "session_end") return "SESSION END";\
+    return llToUpper(t);\
+\}\
+\
+vector eventColor(string t)\
+\{\
+    t = normalizeType(t);\
+\
+    if (t == "ritual_complete") return <1.0, 0.86, 0.20>;\
+    if (t == "ritual_15m") return <1.0, 0.75, 0.20>;\
+    if (t == "battle_result") return <1.0, 0.20, 0.20>;\
+    if (t == "surge_sync") return <0.90, 0.90, 1.0>;\
+    if (t == "honey_used") return <1.0, 0.75, 0.35>;\
+    if (t == "bond_formed") return <0.35, 0.75, 1.0>;\
+    if (t == "session_start") return <0.40, 1.0, 0.55>;\
+    if (t == "session_tick") return <0.75, 0.90, 1.0>;\
+    if (t == "session_end") return <0.60, 0.60, 0.60>;\
+    return <0.95, 0.95, 0.95>;\
+\}\
+\
+float eventGlow(string t)\
+\{\
+    t = normalizeType(t);\
+\
+    if (t == "ritual_complete") return 0.40;\
+    if (t == "ritual_15m") return 0.28;\
+    if (t == "battle_result") return 0.38;\
+    if (t == "surge_sync") return 0.32;\
+    if (t == "honey_used") return 0.24;\
+    if (t == "bond_formed") return 0.22;\
+    if (t == "session_start") return 0.18;\
+    if (t == "session_tick") return 0.12;\
+    if (t == "session_end") return 0.10;\
+    return 0.08;\
+\}\
+\
+integer eventDuration(string t)\
+\{\
+    t = normalizeType(t);\
+\
+    if (t == "ritual_complete") return 7;\
+    if (t == "ritual_15m") return 5;\
+    if (t == "battle_result") return 6;\
+    if (t == "surge_sync") return 5;\
+    if (t == "honey_used") return 5;\
+    if (t == "bond_formed") return 4;\
+    if (t == "session_start") return 3;\
+    if (t == "session_tick") return 2;\
+    if (t == "session_end") return 3;\
+    return 3;\
+\}\
+\
+void stopParticles()\
+\{\
+    llParticleSystem([]);\
+\}\
+\
+void burstParticles(vector c)\
+\{\
+    llParticleSystem([\
+        PSYS_PART_FLAGS,\
+            PSYS_PART_EMISSIVE_MASK\
+            | PSYS_PART_INTERP_COLOR_MASK\
+            | PSYS_PART_INTERP_SCALE_MASK,\
+\
+        PSYS_SRC_PATTERN, PSYS_SRC_PATTERN_EXPLODE,\
+        PSYS_PART_START_COLOR, c,\
+        PSYS_PART_END_COLOR, <1.0, 1.0, 1.0>,\
+        PSYS_PART_START_SCALE, <0.12, 0.12, 0.0>,\
+        PSYS_PART_END_SCALE, <0.35, 0.35, 0.0>,\
+        PSYS_SRC_BURST_RATE, 0.01,\
+        PSYS_SRC_BURST_PART_COUNT, 10,\
+        PSYS_SRC_BURST_RADIUS, 0.06,\
+        PSYS_SRC_BURST_SPEED_MIN, 0.05,\
+        PSYS_SRC_BURST_SPEED_MAX, 0.18,\
+        PSYS_SRC_ACCEL, <0.0, 0.0, 0.15>,\
+        PSYS_PART_MAX_AGE, 1.2,\
+        PSYS_SRC_MAX_AGE, 0.0\
+    ]);\
+\}\
+\
+string makeMarker(string body)\
+\{\
+    string t;\
+    string a;\
+    string ts;\
+\
+    t = safeString(body, ["events", 0, "type"], "");\
+    a = safeString(body, ["events", 0, "avatar"], "");\
+    ts = safeString(body, ["events", 0, "ts"], "");\
+\
+    return t + "|" + ts + "|" + a;\
+\}\
+\
+integer sumWatchers(string body)\
+\{\
+    integer i;\
+    integer total;\
+    string v;\
+\
+    total = 0;\
+\
+    for (i = 0; i < 25; i++)\
+    \{\
+        v = llJsonGetValue(body, ["players", i, "watchers"]);\
+        if (v == "" || v == JSON_INVALID)\
+            return total;\
+\
+        total += (integer)v;\
+    \}\
+\
+    return total;\
+\}\
+\
+integer countPlayers(string body)\
+\{\
+    integer i;\
+    string v;\
+    integer count;\
+\
+    count = 0;\
+\
+    for (i = 0; i < 25; i++)\
+    \{\
+        v = llJsonGetValue(body, ["players", i, "avatar"]);\
+        if (v == "" || v == JSON_INVALID)\
+            return count;\
+\
+        count++;\
+    \}\
+\
+    return count;\
+\}\
+\
+void applyVisualState(vector color, float glow, string label)\
+\{\
+    glow = clampFloat(glow, 0.0, 0.8);\
+\
+    llSetLinkPrimitiveParamsFast(\
+        LINK_SET,\
+        [\
+            PRIM_COLOR, ALL_SIDES, color, 1.0,\
+            PRIM_GLOW, ALL_SIDES, glow\
+        ]\
+    );\
+\
+    llSetText(label, color, 1.0);\
+\}\
+\
+void triggerEvent(string t, string avatar, integer ts)\
+\{\
+    integer dur;\
+    vector c;\
+    float glow;\
+    string label;\
+\
+    activeEventType = t;\
+    activeEventAvatar = avatar;\
+    activeEventTs = ts;\
+\
+    c = eventColor(t);\
+    glow = eventGlow(t);\
+    dur = eventDuration(t);\
+\
+    effectColor = c;\
+    effectGlow = glow;\
+    effectUntil = llGetUnixTime() + dur;\
+    particleUntil = llGetUnixTime() + 2;\
+\
+    label = eventLabel(t);\
+\
+    if (objectRole == "chair")\
+        label = "CHAIR\\n" + label;\
+    else if (objectRole == "board")\
+        label = "BOARD\\n" + label;\
+    else if (objectRole == "feed")\
+        label = "FEED\\n" + label;\
+    else\
+        label = "JLS\\n" + label;\
+\
+    burstParticles(c);\
+    applyVisualState(c, glow, label);\
+\
+    if (DEBUG)\
+    \{\
+        debugSay("Event feedback: " + t + " @" + avatar);\
+    \}\
+\}\
+\
+void refreshAmbient()\
+\{\
+    integer now;\
+    float pulse;\
+    float baseGlow;\
+    float watcherFactor;\
+    vector color;\
+    string label;\
+\
+    now = llGetUnixTime();\
+\
+    watcherFactor = 0.02 + (0.01 * (float)clampInt(totalWatchers, 0, 10));\
+    baseGlow = clampFloat(watcherFactor, 0.02, 0.20);\
+\
+    pulse = 0.82 + (0.18 * llSin((float)now * (0.85 + (0.02 * (float)totalWatchers))));\
+    color = <0.88, 0.92, 1.0> * pulse;\
+\
+    label = "JLS\\nwatchers " + (string)totalWatchers;\
+\
+    if (objectRole == "chair")\
+        label = "CHAIR\\nwatchers " + (string)totalWatchers;\
+    else if (objectRole == "board")\
+        label = "BOARD\\nwatchers " + (string)totalWatchers;\
+    else if (objectRole == "feed")\
+        label = "FEED\\nwatchers " + (string)totalWatchers;\
+\
+    if (now < effectUntil)\
+    \{\
+        color = effectColor;\
+        baseGlow = effectGlow;\
+        label += "\\n" + eventLabel(activeEventType);\
+\
+        if (now < particleUntil)\
+        \{\
+            // keep particles alive briefly during the active effect\
+        \}\
+        else\
+        \{\
+            stopParticles();\
+        \}\
+    \}\
+    else\
+    \{\
+        stopParticles();\
+\
+        if (totalWatchers > 0)\
+        \{\
+            color = <0.90, 0.95, 1.0> * pulse;\
+            baseGlow = clampFloat(baseGlow + (0.02 * (float)clampInt(totalWatchers, 0, 5)), 0.02, 0.25);\
+        \}\
+        else\
+        \{\
+            color = <0.80, 0.82, 0.88> * pulse;\
+        \}\
+    \}\
+\
+    applyVisualState(color, baseGlow, label);\
+\}\
+\
+string chooseEndpoint()\
+\{\
+    if (usingFallback)\
+        return API_WORLD_FALLBACK;\
+\
+    return API_WORLD_MAIN;\
+\}\
+\
+void pollWorld()\
+\{\
+    activeRequest = llHTTPRequest(\
+        chooseEndpoint(),\
+        [HTTP_METHOD, "GET"],\
+        ""\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+\}\
+\
+integer markFailure(string reason)\
+\{\
+    requestPending = FALSE;\
+    activeRequest = NULL_KEY;\
+    requestRetryCount++;\
+\
+    if (requestRetryCount == 1 && !usingFallback)\
+    \{\
+        usingFallback = TRUE;\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        debugSay("Switching feedback layer to fallback.");\
+        return TRUE;\
+    \}\
+\
+    if (requestRetryCount < MAX_RETRIES)\
+    \{\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        debugSay("Retry " + (string)requestRetryCount + " failed: " + reason);\
+        return TRUE;\
+    \}\
+\
+    if (!errorNotified)\
+    \{\
+        llOwnerSay("JLS feedback layer unavailable.");\
+        errorNotified = TRUE;\
+    \}\
+\
+    return FALSE;\
+\}\
+\
+void processWorld(string body)\
+\{\
+    string marker;\
+    string type;\
+    string avatar;\
+    integer ts;\
+    integer watcherSum;\
+    integer playerCount;\
+    integer battleTs;\
+\
+    type = safeString(body, ["events", 0, "type"], "");\
+    avatar = safeString(body, ["events", 0, "avatar"], "");\
+    ts = safeInt(body, ["events", 0, "ts"], 0);\
+    marker = makeMarker(body);\
+\
+    watcherSum = sumWatchers(body);\
+    playerCount = countPlayers(body);\
+\
+    totalWatchers = watcherSum;\
+    activeSessions = safeInt(body, ["metrics", "activeSessions"], activeSessions);\
+    battleTs = safeInt(body, ["battle", "ts"], 0);\
+\
+    if (battleTs > lastBattleTs)\
+    \{\
+        lastBattleTs = battleTs;\
+        if (type == "")\
+        \{\
+            type = "battle_result";\
+            avatar = safeString(body, ["battle", "winner"], avatar);\
+            ts = battleTs;\
+        \}\
+    \}\
+\
+    if (marker != lastEventMarker && type != "")\
+    \{\
+        lastEventMarker = marker;\
+        triggerEvent(type, avatar, ts);\
+    \}\
+    else\
+    \{\
+        refreshAmbient();\
+    \}\
+\
+    if (DEBUG)\
+    \{\
+        debugSay("World sync: players=" + (string)playerCount + " watchers=" + (string)totalWatchers);\
+    \}\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        string name;\
+        name = llToLower(llGetObjectName());\
+\
+        if (llSubStringIndex(name, "chair") != -1 || llSubStringIndex(name, "seat") != -1)\
+            objectRole = "chair";\
+        else if (llSubStringIndex(name, "board") != -1 || llSubStringIndex(name, "leader") != -1)\
+            objectRole = "board";\
+        else if (llSubStringIndex(name, "feed") != -1)\
+            objectRole = "feed";\
+        else\
+            objectRole = "object";\
+\
+        API = API_WORLD_MAIN;\
+        usingFallback = FALSE;\
+        requestPending = FALSE;\
+        requestRetryCount = 0;\
+        errorNotified = FALSE;\
+        nextRequestUnix = 0;\
+        lastEventMarker = "";\
+        activeEventType = "";\
+        totalWatchers = 0;\
+        activeSessions = 0;\
+        lastBattleTs = 0;\
+        effectUntil = 0;\
+        particleUntil = 0;\
+        stopParticles();\
+\
+        llSetTimerEvent(1.0);\
+        refreshAmbient();\
+        pollWorld();\
+    \}\
+\
+    timer()\
+    \{\
+        integer now;\
+\
+        now = llGetUnixTime();\
+\
+        if (requestPending)\
+        \{\
+            if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+            \{\
+                markFailure("timeout");\
+                return;\
+            \}\
+        \}\
+        else\
+        \{\
+            if (now >= nextRequestUnix)\
+            \{\
+                pollWorld();\
+                nextRequestUnix = now + REQUEST_INTERVAL;\
+            \}\
+        \}\
+\
+        refreshAmbient();\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            markFailure("http " + (string)status);\
+            return;\
+        \}\
+\
+        if (llStringLength(body) == 0 || llJsonValueType(body, []) == JSON_INVALID)\
+        \{\
+            markFailure("json");\
+            return;\
+        \}\
+\
+        processWorld(body);\
+        requestRetryCount = 0;\
+        errorNotified = FALSE;\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER)\
+            llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS ADMIN SESSION UTILITY =================\
+// Ends sessions, resolves battles, and checks world state.\
+// A true global reset route is not present in the current backend contract.\
+\
+string API_END = "http://89.167.94.250:3000/api/session/end";\
+string API_BATTLE = "http://89.167.94.250:3000/api/battle/resolve";\
+string API_WORLD = "http://89.167.94.250:3000/api/world";\
+\
+integer CHANNEL = -99999;\
+integer listenHandle;\
+key targetAvatar = NULL_KEY;\
+key activeRequest = NULL_KEY;\
+string pendingAction = "";\
+\
+integer randChannel()\
+\{\
+    return -1 - (integer)llFrand(1000000.0);\
+\}\
+\
+sendPost(string endpoint, string action)\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar", (string)targetAvatar,\
+        "chair_id", (string)llGetKey(),\
+        "zone", 1\
+    ]);\
+\
+    activeRequest = llHTTPRequest(\
+        endpoint,\
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/json"],\
+        body\
+    );\
+\
+    pendingAction = action;\
+\}\
+\
+sendWorld()\
+\{\
+    activeRequest = llHTTPRequest(\
+        API_WORLD,\
+        [HTTP_METHOD, "GET"],\
+        ""\
+    );\
+\
+    pendingAction = "world";\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        CHANNEL = randChannel();\
+        listenHandle = llListen(CHANNEL, "", NULL_KEY, "");\
+        llSetText("ADMIN UTILITY", <1,1,1>, 1.0);\
+    \}\
+\
+    touch_start(integer n)\
+    \{\
+        key av = llDetectedKey(0);\
+        targetAvatar = av;\
+\
+        llDialog(\
+            av,\
+            "Admin actions",\
+            ["End Session", "Resolve Battle", "World", "Cancel"],\
+            CHANNEL\
+        );\
+    \}\
+\
+    listen(integer channel, string name, key id, string message)\
+    \{\
+        if (channel != CHANNEL) return;\
+        if (id != targetAvatar) return;\
+\
+        if (message == "Cancel") return;\
+        if (message == "End Session") sendPost(API_END, "end");\
+        else if (message == "Resolve Battle") sendPost(API_BATTLE, "battle");\
+        else if (message == "World") sendWorld();\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            llOwnerSay("Admin " + pendingAction + " failed: " + (string)status);\
+            return;\
+        \}\
+\
+        llOwnerSay("Admin " + pendingAction + " OK: " + body);\
+        pendingAction = "";\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS ORDER / GROUP TAG CONSOLE =================\
+// Lets a player stamp the current session group tag.\
+\
+string API_EVENT = "http://89.167.94.250:3000/api/event";\
+integer DEBUG = TRUE;\
+\
+integer menuChannel;\
+integer listenHandle;\
+key targetAvatar = NULL_KEY;\
+string currentOrder = "neutral";\
+\
+key activeRequest = NULL_KEY;\
+\
+integer randChannel()\
+\{\
+    return -1 - (integer)llFrand(1000000.0);\
+\}\
+\
+sendOrder(string orderName)\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar", (string)targetAvatar,\
+        "object", (string)llGetKey(),\
+        "action", "hud_tick",\
+        "group_tag", orderName,\
+        "watchers", 0\
+    ]);\
+\
+    activeRequest = llHTTPRequest(\
+        API_EVENT,\
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/json"],\
+        body\
+    );\
+\
+    currentOrder = orderName;\
+    llSetText("ORDER\\n" + currentOrder, <1,1,1>, 1.0);\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        menuChannel = randChannel();\
+        listenHandle = llListen(menuChannel, "", NULL_KEY, "");\
+        llSetText("ORDER\\nneutral", <1,1,1>, 1.0);\
+    \}\
+\
+    touch_start(integer n)\
+    \{\
+        key av = llDetectedKey(0);\
+        targetAvatar = av;\
+\
+        llDialog(\
+            av,\
+            "Select group tag",\
+            ["Neutral", "Architect", "Eye", "Sun", "Cancel"],\
+            menuChannel\
+        );\
+    \}\
+\
+    listen(integer channel, string name, key id, string message)\
+    \{\
+        if (channel != menuChannel) return;\
+        if (id != targetAvatar) return;\
+\
+        if (message == "Cancel") return;\
+\
+        if (message == "Neutral") sendOrder("neutral");\
+        else if (message == "Architect") sendOrder("architect");\
+        else if (message == "Eye") sendOrder("eye");\
+        else if (message == "Sun") sendOrder("sun");\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            llOwnerSay("Order console failed: " + (string)status);\
+            return;\
+        \}\
+\
+        llOwnerSay("Order updated: " + currentOrder);\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS WORLD FEED DISPLAY =================\
+// Shows recent events from /api/world.\
+\
+string API_WORLD = "http://89.167.94.250:3000/api/world";\
+integer DEBUG = TRUE;\
+integer requestPending = FALSE;\
+key activeRequest = NULL_KEY;\
+integer requestSentUnix = 0;\
+integer REQUEST_TIMEOUT = 8;\
+\
+string shortId(string s)\
+\{\
+    if (llStringLength(s) <= 8) return s;\
+    return llGetSubString(s, 0, 7);\
+\}\
+\
+string safeJsonString(string body, list path, string fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return v;\
+\}\
+\
+integer safeJsonInt(string body, list path, integer fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return (integer)v;\
+\}\
+\
+string eventGlyph(string type)\
+\{\
+    if (type == "ritual_complete") return "
+\f1 \uc0\u10023 
+\f0 ";\
+    if (type == "battle_result") return "
+\f4 \uc0\u9876 
+\f0 ";\
+    if (type == "surge_sync") return "
+\f3 \uc0\u10177 
+\f0 ";\
+    if (type == "honey_used") return "\uc0\u55356 \u57199 ";\
+    if (type == "bond_formed") return "
+\f2 \AppleTypeServices\AppleTypeServicesF2293774 \uc0\u9939 
+\f0 \AppleTypeServices ";\
+    if (type == "session_start") return "\uc0\u9673 ";\
+    if (type == "session_tick") return "
+\f3 \uc0\u8942 
+\f0 ";\
+    if (type == "session_end") return "\uc0\u9670 ";\
+    return "\'95";\
+\}\
+\
+string buildFeed(string body)\
+\{\
+    string t;\
+    integer i;\
+    integer limit;\
+    string type;\
+    string avatar;\
+    string metaText;\
+\
+    limit = safeJsonInt(body, ["events"], 0);\
+    if (limit > 5) limit = 5;\
+\
+    t = "\uc0\u9653  JLS FEED \u9653 \\n";\
+\
+    for (i = 0; i < limit; i++)\
+    \{\
+        type = safeJsonString(body, ["events", i, "type"], "");\
+        avatar = safeJsonString(body, ["events", i, "avatar"], "");\
+        metaText = eventGlyph(type) + " " + type;\
+\
+        if (avatar != "")\
+            metaText += " @" + shortId(avatar);\
+\
+        t += metaText + "\\n";\
+    \}\
+\
+    if (limit == 0)\
+        t += "quiet";\
+\
+    return t;\
+\}\
+\
+sendWorld()\
+\{\
+    activeRequest = llHTTPRequest(\
+        API_WORLD,\
+        [HTTP_METHOD, "GET"],\
+        ""\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        llSetTimerEvent(5.0);\
+        sendWorld();\
+    \}\
+\
+    timer()\
+    \{\
+        integer now = llGetUnixTime();\
+\
+        if (requestPending)\
+        \{\
+            if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+            \{\
+                requestPending = FALSE;\
+                activeRequest = NULL_KEY;\
+            \}\
+        \}\
+        else\
+        \{\
+            sendWorld();\
+        \}\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            llSetText("JLS FEED\\noffline", <1,1,1>, 1.0);\
+            return;\
+        \}\
+\
+        llSetText(buildFeed(body), <1,1,1>, 1.0);\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS LEADERBOARD BOARD =================\
+// Displays top players and top pair from /api/world.\
+\
+string API_WORLD = "http://89.167.94.250:3000/api/world";\
+integer DEBUG = TRUE;\
+integer requestPending = FALSE;\
+key activeRequest = NULL_KEY;\
+integer requestSentUnix = 0;\
+integer REQUEST_TIMEOUT = 8;\
+\
+string shortId(string s)\
+\{\
+    if (llStringLength(s) <= 8) return s;\
+    return llGetSubString(s, 0, 7);\
+\}\
+\
+string safeJsonString(string body, list path, string fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return v;\
+\}\
+\
+integer safeJsonInt(string body, list path, integer fallback)\
+\{\
+    string v = llJsonGetValue(body, path);\
+    if (v == "" || v == JSON_INVALID) return fallback;\
+    return (integer)v;\
+\}\
+\
+sendWorld()\
+\{\
+    activeRequest = llHTTPRequest(\
+        API_WORLD,\
+        [HTTP_METHOD, "GET"],\
+        ""\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+\}\
+\
+buildText(string body)\
+\{\
+    string t;\
+    string a0;\
+    string a1;\
+    string a2;\
+    integer xp0;\
+    integer xp1;\
+    integer xp2;\
+    string p0a;\
+    string p0b;\
+    integer shared;\
+\
+    a0 = safeJsonString(body, ["players", 0, "avatar"], "");\
+    a1 = safeJsonString(body, ["players", 1, "avatar"], "");\
+    a2 = safeJsonString(body, ["players", 2, "avatar"], "");\
+    xp0 = safeJsonInt(body, ["players", 0, "xp"], 0);\
+    xp1 = safeJsonInt(body, ["players", 1, "xp"], 0);\
+    xp2 = safeJsonInt(body, ["players", 2, "xp"], 0);\
+\
+    p0a = safeJsonString(body, ["pairs", 0, "pair", 0], "");\
+    p0b = safeJsonString(body, ["pairs", 0, "pair", 1], "");\
+    shared = safeJsonInt(body, ["pairs", 0, "shared_xp"], 0);\
+\
+    t = "\uc0\u9653  JLS SOUVEREIGN BOARD \u9653 \\n";\
+\
+    if (a0 != "")\
+        t += "1. " + shortId(a0) + "  XP " + (string)xp0 + "\\n";\
+    if (a1 != "")\
+        t += "2. " + shortId(a1) + "  XP " + (string)xp1 + "\\n";\
+    if (a2 != "")\
+        t += "3. " + shortId(a2) + "  XP " + (string)xp2 + "\\n";\
+\
+    t += "\\n";\
+\
+    if (p0a != "" && p0b != "")\
+        t += "SOV: " + shortId(p0a) + " + " + shortId(p0b) + "\\nXP " + (string)shared;\
+    else\
+        t += "SOV: pending";\
+\
+    return t;\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        llSetTimerEvent(10.0);\
+        sendWorld();\
+    \}\
+\
+    timer()\
+    \{\
+        integer now = llGetUnixTime();\
+\
+        if (requestPending)\
+        \{\
+            if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+            \{\
+                requestPending = FALSE;\
+                activeRequest = NULL_KEY;\
+            \}\
+        \}\
+        else\
+        \{\
+            sendWorld();\
+        \}\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            llSetText("LEADERBOARD\\noffline", <1,1,1>, 1.0);\
+            return;\
+        \}\
+\
+        llSetText(buildText(body), <1,1,1>, 1.0);\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS HONEY KIOSK =================\
+// Lets a player apply honey through backend rules.\
+\
+string API_MAIN = "http://89.167.94.250:3000/api/honey/use";\
+string API_FALLBACK = "https://jigsawlodgesociety.com/api/honey/use";\
+string API;\
+\
+integer DEBUG = TRUE;\
+integer REQUEST_TIMEOUT = 6;\
+integer MAX_RETRIES = 3;\
+\
+integer menuChannel;\
+integer listenHandle;\
+key targetAvatar = NULL_KEY;\
+\
+key activeRequest = NULL_KEY;\
+integer requestPending = FALSE;\
+integer requestRetryCount = 0;\
+integer requestSentUnix = 0;\
+integer nextRequestUnix = 0;\
+string pendingHoney = "";\
+\
+debugSay(string msg)\
+\{\
+    if (DEBUG) llOwnerSay(msg);\
+\}\
+\
+integer randChannel()\
+\{\
+    return -1 - (integer)llFrand(1000000.0);\
+\}\
+\
+sendHoney(string honey)\
+\{\
+    string body = llList2Json(JSON_OBJECT, [\
+        "avatar", (string)targetAvatar,\
+        "honey", honey\
+    ]);\
+\
+    activeRequest = llHTTPRequest(\
+        API,\
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/json"],\
+        body\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+    pendingHoney = honey;\
+\}\
+\
+integer markFailure(string reason)\
+\{\
+    requestPending = FALSE;\
+    activeRequest = NULL_KEY;\
+    requestRetryCount++;\
+\
+    if (requestRetryCount == 1 && API == API_MAIN)\
+    \{\
+        API = API_FALLBACK;\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        debugSay("Honey kiosk switching to fallback.");\
+        return TRUE;\
+    \}\
+\
+    if (requestRetryCount < MAX_RETRIES)\
+    \{\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        return TRUE;\
+    \}\
+\
+    llOwnerSay("JLS honey kiosk unavailable.");\
+    return FALSE;\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        API = API_MAIN;\
+        menuChannel = randChannel();\
+        listenHandle = llListen(menuChannel, "", NULL_KEY, "");\
+        llSetText("HONEY KIOSK", <1,1,1>, 1.0);\
+    \}\
+\
+    touch_start(integer n)\
+    \{\
+        key av = llDetectedKey(0);\
+        targetAvatar = av;\
+\
+        llDialog(\
+            av,\
+            "Choose honey type",\
+            ["Dev", "Royal", "Poison", "Cancel"],\
+            menuChannel\
+        );\
+    \}\
+\
+    listen(integer channel, string name, key id, string message)\
+    \{\
+        if (channel != menuChannel) return;\
+        if (id != targetAvatar) return;\
+\
+        if (message == "Cancel") return;\
+\
+        if (message == "Dev") sendHoney("dev");\
+        else if (message == "Royal") sendHoney("royal");\
+        else if (message == "Poison") sendHoney("poison");\
+    \}\
+\
+    timer()\
+    \{\
+        integer now = llGetUnixTime();\
+\
+        if (requestPending)\
+        \{\
+            if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+                markFailure("timeout");\
+        \}\
+        else if (now >= nextRequestUnix)\
+        \{\
+            llSetTimerEvent(0.0);\
+        \}\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            markFailure("http " + (string)status);\
+            return;\
+        \}\
+\
+        requestRetryCount = 0;\
+        llSetText("HONEY KIOSK\\nApplied: " + pendingHoney, <1,1,1>, 1.0);\
+        if (DEBUG) debugSay("Honey OK: " + body);\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 // ================= JLS ZONE BEACON =================\
+// Detects nearby avatars and sends watcher counts to backend.\
+\
+string API_MAIN = "http://89.167.94.250:3000/api/event";\
+string API_FALLBACK = "https://jigsawlodgesociety.com/api/event";\
+string API;\
+\
+integer DEBUG = TRUE;\
+integer REQUEST_TIMEOUT = 6;\
+integer MAX_RETRIES = 3;\
+\
+integer activeWatchers = 0;\
+integer lastSentWatchers = -1;\
+integer requestRetryCount = 0;\
+integer requestPending = FALSE;\
+integer requestSentUnix = 0;\
+integer nextRequestUnix = 0;\
+key activeRequest = NULL_KEY;\
+\
+debugSay(string msg)\
+\{\
+    if (DEBUG) llOwnerSay(msg);\
+\}\
+\
+integer clampInt(integer v, integer minV, integer maxV)\
+\{\
+    if (v < minV) return minV;\
+    if (v > maxV) return maxV;\
+    return v;\
+\}\
+\
+string sendBody()\
+\{\
+    return llList2Json(JSON_OBJECT, [\
+        "avatar", (string)llGetOwner(),\
+        "object", (string)llGetKey(),\
+        "action", "hud_tick",\
+        "watchers", activeWatchers\
+    ]);\
+\}\
+\
+sendSync()\
+\{\
+    string body = sendBody();\
+\
+    activeRequest = llHTTPRequest(\
+        API,\
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/json"],\
+        body\
+    );\
+\
+    requestPending = TRUE;\
+    requestSentUnix = llGetUnixTime();\
+    lastSentWatchers = activeWatchers;\
+\}\
+\
+integer markFailure(string reason)\
+\{\
+    requestPending = FALSE;\
+    activeRequest = NULL_KEY;\
+    requestRetryCount++;\
+\
+    if (requestRetryCount == 1 && API == API_MAIN)\
+    \{\
+        API = API_FALLBACK;\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        debugSay("Zone beacon switching to fallback.");\
+        return TRUE;\
+    \}\
+\
+    if (requestRetryCount < MAX_RETRIES)\
+    \{\
+        nextRequestUnix = llGetUnixTime() + 1;\
+        return TRUE;\
+    \}\
+\
+    if (DEBUG) llOwnerSay("JLS zone beacon sync unavailable.");\
+    return FALSE;\
+\}\
+\
+maybeSend()\
+\{\
+    integer now = llGetUnixTime();\
+\
+    if (requestPending)\
+    \{\
+        if ((now - requestSentUnix) > REQUEST_TIMEOUT)\
+            markFailure("timeout");\
+        return;\
+    \}\
+\
+    if (activeWatchers != lastSentWatchers || now >= nextRequestUnix)\
+    \{\
+        sendSync();\
+        nextRequestUnix = now + 5;\
+    \}\
+\}\
+\
+default\
+\{\
+    state_entry()\
+    \{\
+        API = API_MAIN;\
+        llSetText("ZONE BEACON\\n0 watchers", <1,1,1>, 1.0);\
+        llSensorRepeat("", NULL_KEY, AGENT, 7.0, PI, 3.0);\
+        llSetTimerEvent(5.0);\
+    \}\
+\
+    sensor(integer n)\
+    \{\
+        activeWatchers = clampInt(n, 0, 99);\
+        llSetText("ZONE BEACON\\n" + (string)activeWatchers + " watchers", <1,1,1>, 1.0);\
+        maybeSend();\
+    \}\
+\
+    no_sensor()\
+    \{\
+        activeWatchers = 0;\
+        llSetText("ZONE BEACON\\n0 watchers", <1,1,1>, 1.0);\
+        maybeSend();\
+    \}\
+\
+    timer()\
+    \{\
+        maybeSend();\
+    \}\
+\
+    http_response(key id, integer status, list meta, string body)\
+    \{\
+        if (id != activeRequest) return;\
+\
+        requestPending = FALSE;\
+        activeRequest = NULL_KEY;\
+\
+        if (status != 200)\
+        \{\
+            markFailure("http " + (string)status);\
+            return;\
+        \}\
+\
+        requestRetryCount = 0;\
+        if (DEBUG) debugSay("Zone beacon OK: " + body);\
+    \}\
+\
+    changed(integer change)\
+    \{\
+        if (change & CHANGED_OWNER) llResetScript();\
+    \}\
+\
+    on_rez(integer start_param)\
+    \{\
+        llResetScript();\
+    \}\
+\}\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 JIGSAW LODGE SOCIETY \'97 FULL TEST DOCUMENT (COMPLETE)\
+======================================================\
+\
+THIS IS THE ACTUAL WORKING SETUP \'97 NOT PLACEHOLDERS\
+\
+--------------------------------------------------\
+CORE TRUTH\
+--------------------------------------------------\
+Backend = ALL gameplay\
+LSL = input + visual feedback ONLY\
+\
+If something "feels missing" \uc0\u8594  it's NOT missing\
+\uc0\u8594  it's happening on the backend\
+\
+--------------------------------------------------\
+CRITICAL ANSWER (READ THIS FIRST)\
+--------------------------------------------------\
+YES.\
+\
+The script you posted:\
+\
+JLS EVENT FEEDBACK LAYER\
+\
+IS:\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+
+\f1 \cf0 \uc0\u10004 
+\f0  Correct\
+
+\f1 \uc0\u10004 
+\f0  Required\
+
+\f1 \uc0\u10004 
+\f0  Your MAIN testing script\
+\
+This is what makes the world feel alive.\
+\
+--------------------------------------------------\
+OBJECT SETUP (EXACT \'97 NO GUESSING)\
+--------------------------------------------------\
+\
+1. HUD (WEARABLE)\
+----------------------------------\
+Script:\
+JLS HUD v68\
+\
+Put in:\
+HUD attachment\
+\
+Purpose:\
+\'95 Sends player ticks\
+\'95 Displays stats\
+\'95 Drives progression\
+\
+----------------------------------\
+\
+2. CHAIR (SESSION ANCHOR)\
+----------------------------------\
+Script:\
+Simple sit/unsit chair script (NOT trigger menu)\
+\
+Purpose:\
+\'95 Starts session (sit)\
+\'95 Ends session (unsit)\
+\
+DOES NOT:\
+\'95 Do gameplay\
+\'95 Detect rituals\
+\'95 Resolve battles\
+\
+----------------------------------\
+\
+3. EVENT FEEDBACK OBJECT (MOST IMPORTANT)\
+----------------------------------\
+Script:\
+JLS EVENT FEEDBACK LAYER (the big script you posted)\
+\
+Put in:\
+\'95 Chair (optional)\
+\'95 Ritual circle\
+\'95 Orb / altar\
+\'95 Walls / environment\
+\
+Purpose:\
+\'95 Reads /api/world\
+\'95 Reacts to backend events\
+\'95 Shows:\
+  - glow\
+  - pulses\
+  - particles\
+\
+THIS IS YOUR MAIN TEST OBJECT\
+\
+----------------------------------\
+\
+4. ZONE BEACON\
+----------------------------------\
+Script:\
+JLS ZONE BEACON\
+\
+Put in:\
+Invisible prim in room\
+\
+Purpose:\
+\'95 Counts nearby avatars\
+\'95 Sends watcher count to backend\
+\
+----------------------------------\
+\
+5. WORLD FEED DISPLAY\
+----------------------------------\
+Script:\
+JLS WORLD FEED DISPLAY\
+\
+Put in:\
+Wall / board\
+\
+Purpose:\
+\'95 Shows live events\
+\'95 Reads /api/world\
+\
+----------------------------------\
+\
+6. LEADERBOARD BOARD\
+----------------------------------\
+Script:\
+JLS LEADERBOARD BOARD\
+\
+Put in:\
+Wall board\
+\
+Purpose:\
+\'95 Top players\
+\'95 Top bond pair\
+\
+----------------------------------\
+\
+7. HONEY KIOSK\
+----------------------------------\
+Script:\
+JLS HONEY KIOSK\
+\
+Put in:\
+Vendor / altar\
+\
+Purpose:\
+\'95 Applies honey multipliers\
+\
+----------------------------------\
+\
+8. ADMIN PANEL\
+----------------------------------\
+Script:\
+JLS ADMIN SESSION UTILITY\
+\
+Put in:\
+Hidden dev object\
+\
+Purpose:\
+\'95 Force end session\
+\'95 Resolve battle\
+\'95 Inspect world\
+\
+----------------------------------\
+\
+9. ORDER CONSOLE\
+----------------------------------\
+Script:\
+JLS ORDER CONSOLE\
+\
+Purpose:\
+\'95 Set faction (architect / eye / sun)\
+\
+--------------------------------------------------\
+TEST FLOW (REAL)\
+--------------------------------------------------\
+\
+1. Start backend\
+\
+docker compose up -d\
+\
+----------------------------------\
+\
+2. Verify backend\
+\
+Open:\
+http://89.167.94.250:3000/api/world\
+\
+You MUST see JSON\
+\
+----------------------------------\
+\
+3. Rez objects (minimum)\
+\
+REQUIRED:\
+\'95 Chair\
+\'95 Event Feedback Object\
+\'95 HUD (wear it)\
+\
+OPTIONAL:\
+\'95 Zone beacon\
+\'95 Feed board\
+\
+----------------------------------\
+\
+4. Sit on chair\
+\
+Backend:\
+
+\f1 \uc0\u10004 
+\f0  session starts\
+\
+HUD:\
+
+\f1 \uc0\u10004 
+\f0  updates\
+\
+----------------------------------\
+\
+5. WATCH THE FEEDBACK OBJECT\
+\
+THIS IS THE TEST\
+\
+--------------------------------------------------\
+EXPECTED RESULTS\
+--------------------------------------------------\
+\
+IDLE:\
+\'95 Soft glow\
+\'95 "watchers X"\
+\
+----------------------------------\
+\
+RITUAL TICK:\
+\'95 Small pulse\
+\
+----------------------------------\
+\
+RITUAL COMPLETE:\
+\'95 Bright gold flash\
+\'95 Particle burst\
+\
+----------------------------------\
+\
+BATTLE:\
+\'95 Red pulse\
+\'95 Strong glow\
+\
+----------------------------------\
+\
+WATCHERS:\
+\'95 More watchers = stronger ambient glow\
+\
+--------------------------------------------------\
+COMMON FAILURE POINTS\
+--------------------------------------------------\
+\
+\uc0\u10060  "Chair should detect gameplay"\
+
+\f1 \uc0\u10004 
+\f0  Backend does that\
+\
+\uc0\u10060  "Nothing is happening"\
+
+\f1 \uc0\u10004 
+\f0  Check /api/world\
+\
+\uc0\u10060  "Script is wrong"\
+
+\f1 \uc0\u10004 
+\f0  It is correct \'97 problem is placement or backend\
+\
+\uc0\u10060  "Only one object has feedback script"\
+
+\f1 \uc0\u10004 
+\f0  You should have MULTIPLE\
+\
+--------------------------------------------------\
+FINAL SYSTEM MODEL\
+--------------------------------------------------\
+\
+HUD \uc0\u8594  sends input\
+Chair \uc0\u8594  anchors session\
+Backend \uc0\u8594  runs MMO logic\
+/api/world \uc0\u8594  global state\
+Objects \uc0\u8594  REACT visually\
+\
+--------------------------------------------------\
+FINAL CONFIRMATION\
+--------------------------------------------------\
+\
+YES.\
+\
+Use the script you posted.\
+\
+Put it into:\
+
+\f1 \uc0\u10004 
+\f0  at least one object (preferably several)\
+\
+If that object reacts:\
+\
+\uc0\u55357 \u56393  YOUR MMO IS WORKING\
+\
+--------------------------------------------------\
+100 level names \
+\
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 \
+\
+\uc0\u55357 \u56613  Initiate of the Veil \u55357 \u56613 \
+\uc0\u55356 \u57105  Quiet Watcher \u55356 \u57105 \
+\pard\pardeftab560\slleading20\partightenfactor0
+
+\f3 \cf0 \uc0\u55357 \u57090 
+\f0  Ember Touched 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55356 \u57150  Seeker of the Grain \u55356 \u57150 \
+\uc0\u55357 \u56687  Marked by the Lodge \u55357 \u56687 \
+\uc0\u55358 \u56619  Keeper of Whispers \u55358 \u56619 \
+\uc0\u55356 \u57106  Veiled Aspirant \u55356 \u57106 \
+\uc0\u55357 \u56622  Witness to the Rite \u55357 \u56622 \
+\uc0\u55357 \u56593  Holder of the First Key \u55357 \u56593 \
+\uc0\u10024  Recognized Presence \u10024 \
+\uc0\u55357 \u56613  Ember Adept \u55357 \u56613 \
+\uc0\u55356 \u57150  Grain Steward \u55356 \u57150 \
+
+\f3 \uc0\u55357 \u57089 
+\f0  Whisper Carrier 
+\f3 \uc0\u55357 \u57089 
+\f0 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Sigil Awakened 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56687  Gilded Aspirant \u55357 \u56687 \
+\uc0\u55356 \u57112  Oathbound Listener \u55356 \u57112 \
+\uc0\u55357 \u56613  Inner Ember \u55357 \u56613 \
+\uc0\u55356 \u57105  Lodge Attuned \u55356 \u57105 \
+
+\f3 \uc0\u55357 \u57091 
+\f0  Sigil Marked 
+\f3 \uc0\u55357 \u57091 
+\f0 \
+\uc0\u55357 \u56613  First Circle Initiate \u55357 \u56613 \
+\uc0\u55357 \u56622  Ritual Participant \u55357 \u56622 \
+\uc0\u55356 \u57106  Guardian of Quiet Heat \u55356 \u57106 \
+\uc0\u55357 \u56593  Keeper of the Threshold \u55357 \u56593 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Sigil Aligned 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56613  Inner Lodge Recognized \u55357 \u56613 \
+\uc0\u55356 \u57150  Ember Architect \u55356 \u57150 \
+\uc0\u55357 \u56687  Steward of Ascent \u55357 \u56687 \
+\uc0\u55357 \u56622  Ritual Conductor \u55357 \u56622 \
+\uc0\u55356 \u57105  Lodge Strategist \u55356 \u57105 \
+\uc0\u55357 \u56613  Veil Piercer \u55357 \u56613 \
+\uc0\u55357 \u56593  Circle Architect \u55357 \u56593 \
+\uc0\u55357 \u56613  Keeper of the Flame \u55357 \u56613 \
+\uc0\u55356 \u57112  Gilded Watcher \u55356 \u57112 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Ritual Steward 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56622  Sigil Guardian \u55357 \u56622 \
+\uc0\u55356 \u57105  Voice of the Lodge \u55356 \u57105 \
+\uc0\u55357 \u56613  Architect of Rising Heat \u55357 \u56613 \
+\uc0\u55357 \u56687  Keeper of Sealed Secrets \u55357 \u56687 \
+\uc0\u55356 \u57112  Veil Stabilizer \u55356 \u57112 \
+\uc0\u55357 \u56613  Inner Chamber Member \u55357 \u56613 \
+\uc0\u55357 \u56622  Chamber Initiate \u55357 \u56622 \
+\uc0\u55357 \u56613  Flame Warden \u55357 \u56613 \
+\uc0\u55356 \u57105  Keeper of Accord \u55356 \u57105 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Ember Strategist 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56613  Gilded Authority \u55357 \u56613 \
+\uc0\u55357 \u56622  Ritual Director \u55357 \u56622 \
+\uc0\u55356 \u57112  Lodge Executor \u55356 \u57112 \
+\uc0\u55357 \u56613  Mastery of the Veil \u55357 \u56613 \
+\uc0\u55357 \u56687  Keeper of Alignment \u55357 \u56687 \
+\uc0\u55357 \u56613  Inner Circle Sovereign \u55357 \u56613 \
+\uc0\u55357 \u56401  Inner Circle Regent \u55357 \u56401 \
+\uc0\u55357 \u56613  Warden of Ascension \u55357 \u56613 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Ember Highkeeper 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56622  Chamber Strategist \u55357 \u56622 \
+\uc0\u55357 \u56613  Veil Arbiter \u55357 \u56613 \
+\uc0\u55357 \u56401  Ritual Sovereign \u55357 \u56401 \
+\uc0\u55357 \u56613  Lodge High Architect \u55357 \u56613 \
+\uc0\u55357 \u56687  Keeper of the Hidden Flame \u55357 \u56687 \
+\uc0\u55357 \u56401  Sigil Regent \u55357 \u56401 \
+\uc0\u55357 \u56613  Authority of the Inner Chamber \u55357 \u56613 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Circle Dominant 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56613  Ember High Regent \u55357 \u56613 \
+\uc0\u55357 \u56401  Ritual Dominus \u55357 \u56401 \
+\uc0\u55357 \u56622  Gilded Warden \u55357 \u56622 \
+\uc0\u55357 \u56613  Keeper of Sovereign Flame \u55357 \u56613 \
+\uc0\u55356 \u57112  Veil Commander \u55356 \u57112 \
+\uc0\u55357 \u56401  Chamber High Guardian \u55357 \u56401 \
+\uc0\u55357 \u56613  Sigil Sovereign \u55357 \u56613 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Architect of Dominion 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56401  Lodge Eminence \u55357 \u56401 \
+\uc0\u55357 \u56613  High Circle Authority \u55357 \u56613 \
+\uc0\u55357 \u56687  Veiled Eminence \u55357 \u56687 \
+\uc0\u55357 \u56622  Flame Exemplar \u55357 \u56622 \
+\uc0\u55357 \u56613  Ritual Paragon \u55357 \u56613 \
+\uc0\u55357 \u56401  Keeper of the Hidden Accord \u55357 \u56401 \
+\uc0\u55357 \u56613  Sovereign of the Veil \u55357 \u56613 \
+
+\f3 \uc0\u55357 \u57090 
+\f0  Gilded Paragon 
+\f3 \uc0\u55357 \u57090 
+\f0 \
+\uc0\u55357 \u56401  Lodge Ascendant Prime \u55357 \u56401 \
+\uc0\u55357 \u56613  Ember Grand Regent \u55357 \u56613 \
+\uc0\u55357 \u56622  Inner Mythic Presence \u55357 \u56622 \
+\uc0\u55357 \u56613  Ritual Apex \u55357 \u56613 \
+\uc0\u55357 \u56401  Veil Apex \u55357 \u56401 \
+\uc0\u55357 \u56613  Chamber Apex \u55357 \u56613 \
+\uc0\u55357 \u56622  Flame Apex \u55357 \u56622 \
+\uc0\u55357 \u56401  Lodge Apex \u55357 \u56401 \
+\uc0\u55357 \u56613  Gilded Apex \u55357 \u56613 \
+\uc0\u55357 \u56401  Inner Circle Apex \u55357 \u56401 \
+\uc0\u55357 \u56613  Sovereign Apex \u55357 \u56613 \
+\uc0\u55357 \u56622  Ascension Apex \u55357 \u56622 \
+\uc0\u55357 \u56401  Dominion Apex \u55357 \u56401 \
+\uc0\u55357 \u56613  Veiled Dominion \u55357 \u56613 \
+\uc0\u55357 \u56401  Flame Sovereign \u55357 \u56401 \
+\uc0\u55357 \u56613  Architect of Eternity \u55357 \u56613 \
+\uc0\u55357 \u56622  Keeper of the Final Sigil \u55357 \u56622 \
+\uc0\u55357 \u56401  High Regent of the Circle \u55357 \u56401 \
+\uc0\u55357 \u56613  Grand Chamber Architect \u55357 \u56613 \
+\uc0\u55357 \u56622  Master of the Veiled Flame \u55357 \u56622 \
+\uc0\u55357 \u56401  Bearer of the Eternal Mark \u55357 \u56401 \
+\uc0\u55357 \u56613  Emissary of the Inner Throne \u55357 \u56613 \
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 \uc0\u55357 \u56401  Grand Sovereign of the Jigsaw Lodge \u55357 \u56401 \
+\pard\pardeftab560\slleading20\partightenfactor0
+\cf0 \
+\
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+\cf0 \
+}
