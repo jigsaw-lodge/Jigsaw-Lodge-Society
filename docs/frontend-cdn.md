@@ -22,4 +22,4 @@ You can override behavior with environment variables:
 - Add a CI job that runs `./scripts/build-frontend.sh`, uploads `dist/frontend-bundle.zip` as an artifact, and pushes it to your CDN (e.g., `aws s3 cp dist/frontend-bundle.zip s3://your-bucket/ --acl public-read`).  
 - Use signed URLs or CDN purge APIs to refresh caches after each deploy.
 
-The repository now includes `.github/workflows/deploy-frontend.yml`, which builds the bundle and deploys it to your AWS S3 bucket on every `main` push. Provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `FRONTEND_BUCKET`, and optionally `CLOUDFRONT_DISTRIBUTION_ID` as secrets so the job can sync and invalidate caches automatically.  
+The repository now includes `.github/workflows/deploy-frontend.yml`, which builds the bundle and deploys it to your AWS S3 bucket on every `main` push. Provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `FRONTEND_BUCKET` as secrets so the job can sync the bundle. If you still need CloudFront invalidation, run `aws cloudfront create-invalidation` manually after the sync (or keep a separate script that references the distribution ID).  

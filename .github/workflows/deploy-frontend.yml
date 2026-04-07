@@ -33,10 +33,3 @@ jobs:
         run: |
           unzip -o dist/frontend-bundle.zip -d dist/frontend
           aws s3 sync dist/frontend s3://${{ secrets.FRONTEND_BUCKET }}/ --acl public-read --delete
-
-      - name: Invalidate CDN (optional)
-        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
