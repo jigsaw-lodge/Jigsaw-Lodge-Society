@@ -20,6 +20,13 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7
+    container_name: jls_redis
+    restart: always
+    ports:
+      - "6380:6379"
+
   backend:
     build: .
     container_name: jls_backend
@@ -27,7 +34,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      REDIS_URL: redis://redis:6379
       DB_HOST: db
       DB_USER: postgres
       DB_PASS: password
@@ -35,6 +46,41 @@ services:
       DB_PORT: 5432
     ports:
       - "3000:3000"
+
+  worker:
+    build: .
+    container_name: jls_worker
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      REDIS_URL: redis://redis:6379
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASS: password
+      DB_NAME: jls
+      DB_PORT: 5432
+    command: ["node", "workers/engineWorker.js"]
+
+  relay:
+    build: .
+    container_name: jls_relay
+    restart: always
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      REDIS_URL: redis://redis:6379
+      WS_PORT: 3010
+      WS_HOST: 0.0.0.0
+    command: ["node", "wsrelay.js"]
+    ports:
       - "3010:3010"
 
 volumes:

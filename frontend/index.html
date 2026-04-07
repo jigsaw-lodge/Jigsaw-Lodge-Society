@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jigsaw Lodge Society</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body
+    data-base-url="https://www.jigsawlodgesociety.com/api"
+    data-ws-url="wss://ws.jigsawlodgesociety.com"
+  >
+    <div id="reveal">▵ YOU ARE KNOWN ▵</div>
+    <div id="activation" class="activation">
+      <div class="rune">
+        <div class="ring ring1"></div>
+        <div class="ring ring2"></div>
+        <div class="rune-center">
+          <span>▵</span>
+          <span class="rune-grid">☉╳☾</span>
+        </div>
+      </div>
+      <p class="activation-copy">Touch to enter the lodge</p>
+    </div>
+
+    <nav class="nav">
+      <div class="brand">▵ JLS ▵</div>
+      <div class="nav-links">
+        <button type="button" data-view="feed">Feed</button>
+        <button type="button" data-view="profile">Profile</button>
+        <button type="button" data-view="zones">Zones</button>
+      </div>
+    </nav>
+
+    <main class="grid">
+      <section id="feedView" class="panel">
+        <h3 id="feedTitle">LIVE FEED</h3>
+        <div id="feed" class="feed"></div>
+      </section>
+
+      <section class="panel directives">
+        <h3>DIRECTIONAL AGENDA</h3>
+        <div class="directive-grid">
+          <article>
+            <h4>Eyes Wide Shut / Occult</h4>
+            <p>Secret rituals, velvet night, and the whispered oath that binds the lodge.</p>
+          </article>
+          <article>
+            <h4>Stock Exchange</h4>
+            <p>Every zone is a ticker; influence flows like liquidity, and power swaps hands in realtime.</p>
+          </article>
+          <article>
+            <h4>The Matrix</h4>
+            <p>Beyond the UI, reality bends—the relay reveals anomalies before minds catch up.</p>
+          </article>
+          <article>
+            <h4>Gossip Girl</h4>
+            <p>The feed is the pulse. Everyone’s talking, but only the initiated hear the true gossip.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="profileView" class="panel hidden">
+        <h3>PROFILE</h3>
+        <p>XP: <strong id="xp">--</strong></p>
+        <div class="heat"></div>
+        <p id="whisper">Awaiting signal...</p>
+        <small class="meta">Ascension Level <span id="ascension">0</span></small>
+      </section>
+
+      <section id="zonesView" class="panel hidden">
+        <h3>ZONES</h3>
+        <div id="zones" class="zones-grid"></div>
+        <div class="legend">
+          <span class="dot active"></span><small>Controlled</small>
+          <span class="dot enemy"></span><small>Contested</small>
+        </div>
+      </section>
+    </main>
+
+    <section class="panel subscribe">
+      <hgroup>
+        <h2>Enter</h2>
+        <h3>Identity Required</h3>
+      </hgroup>
+      <form class="grid">
+        <input placeholder="UUID" />
+        <input placeholder="Token" />
+        <button type="button">Connect</button>
+      </form>
+    </section>
+
+    <footer class="panel footer">
+      <small>System status via <a href="#">JLS relay</a></small>
+    </footer>
+
+    <script src="main.js" type="module"></script>
+  </body>
+</html>

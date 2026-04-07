@@ -309,6 +309,13 @@ Honey kiosk
 Admin panel
 
 ----------------------------------------
+FRONTEND
+----------------------------------------
+- Static UI lives in `frontend/` and is served automatically at `/` when the backend is running.  
+- The page hits `/api/health`, connects to `wss://ws.jigsawlodgesociety.com`, and displays artifact spawn feeds so you can watch the release pipeline in real time.  
+- Deploy the directory to your host (or copy into S3/Pages) and make sure the proxy/logical host matches `BASE_URL`/`WS_URL` (see `docs/frontend-deploy.md` for details).  
+
+----------------------------------------
 SECURITY
 ----------------------------------------
 
@@ -316,6 +323,23 @@ No client trust
 Token validation
 800ms rate limit
 Retry = 3
+
+ENVIRONMENT
+----------------------------------------
+
+- Copy `.env.example` to `.env` and populate `ADMIN_TOKEN`, `BASE_URL`, `WS_URL`, and the database credentials before running the API so the guard rails are active.
+- Docker Compose now forwards `${ADMIN_TOKEN}` into the backend and the process exits immediately if the token is missing, keeping the admin artifact endpoint shielded by configuration.
+- Redis in Docker Compose binds to host port `6380` instead of `6379` so it never collides with the host `redis-server` already listening on `127.0.0.1:6379`.
+-`docker compose up` now spins up the `worker` service (`node workers/engineWorker.js`) alongside the API so artifact spawns, XP grants, and honey bookkeeping run automatically during local testing.
+
+ADMIN ARTIFACT TOOLING
+----------------------------------------
+
+- Set `ADMIN_TOKEN` (strong secret) in `.env` before starting the API; the server now refuses to boot without it so the guarded artifact endpoint cannot be misconfigured.
+- POST `/api/admin/artifact/spawn` (header `X-Admin-Token` or `Authorization: Bearer <token>`) publishes a guarded artifact spawn event that feeds the worker, the artifact registry, and the WebSocket relay.
+- Use `npm run artifact-smoke` (same `ADMIN_TOKEN`, `BASE_URL`, `WS_URL`, and DB vars as the server) to triage artifact spawns, validate persistence, and watch the WebSocket/feed pipeline deliver the `artifact_spawn` payloads.
+- Refer to `docs/canonical-system-spec.md` and `docs/kiosk-menus.md` before tuning honey/order flow so values stay synced with the backend authority model.
+- The sample HUD page at `/frontend/index.html` mirrors `docs/kiosk-menus.md`, showing the canonical honey timers, cooldowns, multipliers, effect tooltips, and fixed order buttons that hit `/api/sync` so the backend remains the single source of truth.
 
 ----------------------------------------
 EVENT LOOP
