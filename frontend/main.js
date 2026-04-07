@@ -102,30 +102,31 @@ document.querySelectorAll(".nav-links button").forEach((btn) => {
   btn.addEventListener("click", () => viewPanel(btn.dataset.view));
 });
 
-const auraAudio = new Audio("/sounds/chime.mp3");
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playAura() {
-  auraAudio.currentTime = 0;
-  auraAudio.volume = 0.25;
-  auraAudio.play().catch(() => {});
-}
-if (activationEl) {
-  activationEl.addEventListener("click", () => {
-    playAura();
-    unlockExperience();
-  });
-  activationEl.addEventListener("touchstart", (event) => {
-    event.preventDefault();
-    playAura();
-    unlockExperience();
-  });
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = 340;
+  gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.8);
 }
 
 if (activationEl) {
-  activationEl.addEventListener("click", unlockExperience);
-  activationEl.addEventListener("touchstart", (event) => {
-    event.preventDefault();
+  const triggerUnlock = (event) => {
+    if (event) event.preventDefault();
+    playAura();
     unlockExperience();
-  });
+  };
+  activationEl.addEventListener("click", triggerUnlock);
+  activationEl.addEventListener("touchstart", triggerUnlock);
 }
 
 function startZonesLoop() {

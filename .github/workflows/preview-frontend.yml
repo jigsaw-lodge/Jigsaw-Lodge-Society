@@ -1,0 +1,45 @@
+name: Preview Frontend
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: preview
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend artifact
+        run: ./scripts/build-frontend.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.PREVIEW_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PREVIEW_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.PREVIEW_AWS_REGION }}
+
+      - name: Sync preview bundle to staging bucket
+        run: |
+          unzip -o dist/frontend-bundle.zip -d dist/frontend
+          aws s3 sync dist/frontend s3://${{ secrets.PREVIEW_FRONTEND_BUCKET }}/ --acl public-read --delete
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              body: `Preview deployed: https://${{ secrets.PREVIEW_FRONTEND_BUCKET }}.s3.amazonaws.com/index.html`
+            })
