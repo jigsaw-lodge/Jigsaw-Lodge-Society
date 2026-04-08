@@ -30,6 +30,7 @@ jobs:
         run: ./scripts/build-frontend.sh
 
       - name: Configure AWS credentials
+        if: ${{ secrets.PREVIEW_AWS_REGION && secrets.PREVIEW_AWS_ACCESS_KEY_ID && secrets.PREVIEW_AWS_SECRET_ACCESS_KEY }}
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.PREVIEW_AWS_ACCESS_KEY_ID }}
@@ -37,11 +38,13 @@ jobs:
           aws-region: ${{ secrets.PREVIEW_AWS_REGION }}
 
       - name: Sync preview bundle to staging bucket
+        if: ${{ secrets.PREVIEW_FRONTEND_BUCKET && secrets.PREVIEW_AWS_REGION && secrets.PREVIEW_AWS_ACCESS_KEY_ID && secrets.PREVIEW_AWS_SECRET_ACCESS_KEY }}
         run: |
           unzip -o dist/frontend-bundle.zip -d dist/frontend
           aws s3 sync dist/frontend s3://${{ secrets.PREVIEW_FRONTEND_BUCKET }}/ --acl public-read --delete
 
       - name: Comment preview URL
+        if: ${{ secrets.PREVIEW_FRONTEND_BUCKET }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
