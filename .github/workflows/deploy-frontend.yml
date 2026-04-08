@@ -11,6 +11,11 @@ jobs:
     environment: production
     permissions:
       contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      HETZNER_HOST: 89.167.94.250
+      HETZNER_USER: root
+      HETZNER_TARGET: /var/www/jigsawlodgesociety
 
     steps:
       - name: Checkout
@@ -19,17 +24,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure zip is available
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
       - name: Build frontend artifact
         run: ./scripts/build-frontend.sh
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
+      - name: Start ssh-agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          ssh-private-key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
 
-      - name: Sync frontend bundle to S3
+      - name: Cache Hetzner host key
         run: |
-          unzip -o dist/frontend-bundle.zip -d dist/frontend
-          aws s3 sync dist/frontend s3://${{ secrets.FRONTEND_BUCKET }}/ --acl public-read --delete
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $HETZNER_HOST >> ~/.ssh/known_hosts
+
+      - name: Upload bundle to Hetzner
+        run: scp dist/frontend/frontend-bundle.zip $HETZNER_USER@$HETZNER_HOST:/tmp/frontend-bundle.zip
+
+      - name: Deploy bundle on Hetzner
+        run: |
+          ssh $HETZNER_USER@$HETZNER_HOST "HETZNER_TARGET=$HETZNER_TARGET bash -s" <<'EOF'
+            set -euo pipefail
+            rm -rf "$HETZNER_TARGET"
+            mkdir -p "$HETZNER_TARGET"
+            unzip -o /tmp/frontend-bundle.zip -d "$HETZNER_TARGET"
+            if [ -d "$HETZNER_TARGET/frontend" ]; then
+              set -o dotglob
+              mv "$HETZNER_TARGET/frontend"/* "$HETZNER_TARGET"/
+              rm -rf "$HETZNER_TARGET/frontend"
+            fi
+            chmod -R 755 "$HETZNER_TARGET"
+            rm -f /tmp/frontend-bundle.zip
+          EOF
