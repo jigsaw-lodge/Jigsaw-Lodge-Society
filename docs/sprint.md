@@ -13,9 +13,11 @@ This is the single page to look at every day.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Task 64-65: keep tightening world polling cadence and challenge/honey visibility on the frontend.
 - `TODO` Use `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt` as the export checklist for the remaining SL object source files.
+- `TODO` Build the merged `JLS_MARKETPLACE_TERMINAL.lsl` and the matching HUD marketplace menu instead of reviving separate public kiosks.
 
 ## Blocked
-- `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
+- `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, marketplace, and console scripts are exported into the repo.
+- `WAITING` Marketplace direction is locked, but the merged public marketplace object and HUD marketplace menu do not exist in source yet.
 - `WAITING` The new full LSL package manifest is ready, but the non-HUD object scripts still need to be exported or built from that manifest before Hasan can mark the full SL suite source-complete.
 
 ## Done Today
@@ -82,3 +84,4 @@ This is the single page to look at every day.
 - `DONE` Task 40: added `docs/core-loop-checklist.md` so the manual game loop can be verified the same way every time.
 - `DONE` Task 95: added `docs/go-no-go-board.md` so the founder launch call matches current health, smoke, and SL proof status.
 - `DONE` Added `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt`, the plain-English LSL manifest for every object/script needed to test the whole MMO.
+- `DONE` Marketplace direction locked: public kiosks consolidate into one marketplace object, with a matching marketplace menu inside the wearable HUD.

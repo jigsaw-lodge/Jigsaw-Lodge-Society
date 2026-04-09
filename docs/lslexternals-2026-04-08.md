@@ -14,14 +14,14 @@ Bundle of client-side scripts/assets that Second Life uses to exercise the backe
 | Zone beacon | `JLS ZONE BEACON` | Sensors near avatars, reports watcher counts to `/event`. |
 | World feed board | `JLS WORLD FEED DISPLAY` | Queries `/api/world` and prints the latest event glyphs on a wall board. |
 | Leaderboard board | `JLS LEADERBOARD BOARD` | Displays top three players and sovereign pair from `/api/world`. |
-| Honey kiosk | `JLS HONEY KIOSK` | Calls `/api/honey/use` with the desired honey type (dev/royal/poison). |
+| Marketplace terminal | `JLS MARKETPLACE TERMINAL` | Single clickable public market object that replaces the split honey/challenge/purchase kiosks and calls the live backend routes. |
 | Admin utility | `JLS ADMIN SESSION UTILITY` | Hidden dev panel to resolve battles, end sessions, and fetch `/api/world`. |
-| Order console | `JLS ORDER CONSOLE` | Lets players set their group tag (architect/eye/sun) via `/api/event`.
+| Order console | `JLS ORDER CONSOLE` | Lets players set their order (`architect`/`eye`/`black_sun`/`neutral`) through `/api/sync`. |
 
 ## Deployment instructions
 
 1. Start the backend with `ADMIN_TOKEN` set and ensure `/api/world` returns JSON before rezzing objects.
-2. Rez at least a chair, HUD, and one feedback object; optionally add beacon/feed/board/kiosk/admin/order devices for extended testing.
+2. Rez at least a chair, HUD, and one feedback object; optionally add beacon/feed/board/marketplace/admin/order devices for extended testing.
 3. Sit on the chair to start a session; the HUD should bootstrap (weighted frames) and the feedback object should respond to backend events (ritual/battle/pulse).
 4. Use `/api/world` (or the event feedback object) to verify watchers, rituals, battles, and honey applications display correctly. Keep logs/screenshots for QA signoff.
 5. Prefer signed requests for HUDs/chairs using `docs/sl-request-signing.md`; keep the shared token only as a migration fallback.

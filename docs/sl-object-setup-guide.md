@@ -6,7 +6,7 @@ Use this guide when you are rezzing:
 - the HUD
 - the chair / furniture object
 - the feed board or event feedback object
-- optional honey / order / zone objects
+- optional marketplace / identity / zone objects
 
 For the full "what scripts do I actually need?" manifest, also keep:
 - [JLS_FULL_TESTING_PACKAGE.txt](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt)
@@ -160,10 +160,14 @@ Add these only after HUD + chair are proven:
   - helps visualize ritual/battle/feed activity
 - world feed board
   - reads `/api/world`
-- honey kiosk
-  - calls `/api/honey/use`
+- marketplace terminal
+  - combines honey, challenge, purchase, and cosmetic menu flows
 - order console
   - calls `/api/sync`
+
+HUD direction:
+- the wearable HUD is expected to gain a real marketplace menu
+- keep the HUD marketplace and the public marketplace terminal aligned so players do not have to learn two different commerce systems
 
 ## 9. The first golden path
 

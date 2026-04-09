@@ -18,6 +18,8 @@ Current truth:
 - signed requests are preferred
 - shared-token mode is a migration fallback only
 - only two HUD scripts are currently checked into the repo
+- public kiosk behavior is being consolidated into one marketplace object
+- the wearable HUD is expected to expose a real marketplace menu
 
 CHECKED INTO THE REPO TODAY
 ---------------------------
@@ -77,7 +79,53 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
    - watcher counts
    - world snapshot zone context
 
-3. JLS_ORDER_CONSOLE.lsl
+3. JLS_MARKETPLACE_TERMINAL.lsl
+   Object:
+   - one clickable public marketplace object
+   - replaces the split honey kiosk, challenge board, and purchase kiosk
+   Endpoints:
+   - POST /api/honey/use
+   - GET /api/challenges?avatar=<uuid>
+   - POST /api/challenges/claim
+   - POST /api/purchase
+   Optional read-only support:
+   - GET /api/world
+   Marketplace sections:
+   - honey
+   - challenge claim
+   - pentacle or Linden purchase flows
+   - cosmetics preview
+   Tests unlocked:
+   - honey apply
+   - cooldown and rejection paths
+   - challenge progress visibility
+   - challenge claim success
+   - double-claim rejection
+   - treasury increments
+   - pentacle grants
+   - purchase feed and logging
+
+4. HUD_MARKETPLACE_MENU
+   Object:
+   - capability inside the wearable HUD, not a separate world object
+   Script home:
+   - jls_hud_v68.ll or its successor HUD script
+   Endpoints:
+   - POST /api/honey/use
+   - GET /api/challenges?avatar=<uuid>
+   - POST /api/challenges/claim
+   - POST /api/purchase
+   Optional read-only support:
+   - GET /api/world
+   Purpose:
+   - give the player the same marketplace flows without leaving the HUD
+   - mirror the public marketplace terminal menu and copy
+   Tests unlocked:
+   - in-HUD marketplace flow
+   - menu sync between HUD and world marketplace
+   - easier beginner testing without rezzing every commerce object
+
+5. JLS_ORDER_CONSOLE.lsl
    Object:
    - player order picker
    Endpoint:
@@ -103,60 +151,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
    - battle bar identity
    - zone pressure context
 
-4. JLS_HONEY_KIOSK.lsl
-   Object:
-   - honey use console
-   Endpoint:
-   - POST /api/honey/use
-   Required fields:
-   - avatar
-   - type
-   Allowed honey types:
-   - dev
-   - poison
-   - royal
-   Tests unlocked:
-   - honey apply
-   - cooldown and rejection paths
-   - HUD/world feedback for boosts
-
-5. JLS_CHALLENGE_BOARD.lsl
-   Object:
-   - challenge progress and claim board
-   Endpoints:
-   - GET /api/challenges?avatar=<uuid>
-   - POST /api/challenges/claim
-   Required claim fields:
-   - avatar
-   - tier
-   Allowed tiers:
-   - daily
-   - weekly
-   - monthly
-   - quarterly
-   Tests unlocked:
-   - challenge progress visibility
-   - claim success
-   - double-claim rejection
-
-6. JLS_PURCHASE_KIOSK.lsl
-   Object:
-   - economy purchase test object
-   Endpoint:
-   - POST /api/purchase
-   Required fields:
-   - avatar
-   - amount
-   - type
-   Allowed purchase types:
-   - l
-   - pentacle
-   Tests unlocked:
-   - treasury increments
-   - pentacle grants
-   - purchase feed/logging
-
-7. JLS_WORLD_FEED_DISPLAY.lsl
+6. JLS_WORLD_FEED_DISPLAY.lsl
    Object:
    - wall board or observer board
    Endpoint:
@@ -172,7 +167,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
    - snapshot freshness
    - live operator verification
 
-8. JLS_EVENT_FEEDBACK_LAYER.lsl
+7. JLS_EVENT_FEEDBACK_LAYER.lsl
    Object:
    - glow, pulse, particle, or local feedback object
    Endpoint:
@@ -183,7 +178,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
    - battle visibility
    - artifact visibility
 
-9. JLS_LEADERBOARD_BOARD.lsl
+8. JLS_LEADERBOARD_BOARD.lsl
    Object:
    - board for top players and top pairs
    Endpoint:
@@ -195,7 +190,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
    - progression display
    - social visibility
 
-10. JLS_ADMIN_ARTIFACT_UTILITY.lsl
+9. JLS_ADMIN_ARTIFACT_UTILITY.lsl
     Object:
     - owner-only test utility
     Endpoints:
@@ -211,7 +206,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
     - do not distribute ADMIN_TOKEN in public objects
     - keep this object owner-only and sandbox-only
 
-11. JLS_ADMIN_SESSION_UTILITY.lsl
+10. JLS_ADMIN_SESSION_UTILITY.lsl
     Object:
     - owner-only session helper
     Endpoints:
@@ -224,7 +219,7 @@ SCRIPTS STILL NEEDED FOR FULL MMO TESTING
     Important:
     - do not distribute ADMIN_TOKEN in public objects
 
-12. JLS_BATTLE_ARBITER_UTILITY.lsl
+11. JLS_BATTLE_ARBITER_UTILITY.lsl
     Object:
     - owner-only battle test tool
     Endpoint:
@@ -278,12 +273,11 @@ FULL PACKAGE FOR WHOLE-GAME FUNCTION TESTING
 --------------------------------------------
 To test the whole MMO feature surface, use:
 - minimal or themed HUD
+- HUD marketplace menu
 - chair session anchor
 - zone beacon
+- marketplace terminal
 - order console
-- honey kiosk
-- challenge board
-- purchase kiosk
 - world feed display
 - event feedback layer
 - leaderboard board
@@ -304,9 +298,8 @@ Zone and territory:
 - world feed display
 
 Economy:
-- honey kiosk
-- challenge board
-- purchase kiosk
+- marketplace terminal
+- HUD marketplace menu
 - HUD
 
 Artifacts:
@@ -328,10 +321,8 @@ WHAT TO EXPORT INTO GITHUB NEXT
 To unblock honest source review of the full SL suite, export these scripts:
 - JLS_CHAIR_SESSION_ANCHOR.lsl
 - JLS_ZONE_BEACON.lsl
+- JLS_MARKETPLACE_TERMINAL.lsl
 - JLS_ORDER_CONSOLE.lsl
-- JLS_HONEY_KIOSK.lsl
-- JLS_CHALLENGE_BOARD.lsl
-- JLS_PURCHASE_KIOSK.lsl
 - JLS_WORLD_FEED_DISPLAY.lsl
 - JLS_EVENT_FEEDBACK_LAYER.lsl
 - JLS_LEADERBOARD_BOARD.lsl

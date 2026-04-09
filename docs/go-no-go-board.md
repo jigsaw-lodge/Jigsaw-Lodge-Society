@@ -26,7 +26,7 @@ If you only want the short truth, read this file and [launch-100-checklist.md](/
 
 ## What must happen before go
 1. Run one full SL golden path and archive the evidence.
-2. Export the remaining chair, zone, artifact, kiosk, and console scripts into the repo.
+2. Export the remaining chair, zone, artifact, marketplace, and console scripts into the repo.
 3. Rerun the current-build load test and PUB/SUB benchmark.
 4. Deploy `JLS_SIGNING_SECRET`, update the objects, and then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 

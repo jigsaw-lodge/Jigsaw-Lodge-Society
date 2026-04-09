@@ -98,7 +98,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 64. `TODO` Make `/api/world` polling cadence match the overlay guidance.
 65. `TODO` Hook challenge, ritual, and honey state into the frontend UI.
 66. `TODO` Build a simple player dashboard showing XP, level, rituals, pentacles, and active boosts.
-67. `TODO` Make the cosmetics and kiosk surfaces read from live API data instead of mockups only.
+67. `TODO` Make the cosmetics and marketplace surfaces read from live API data instead of mockups only.
 68. `DONE` Add a “connection lost / reconnecting” UI state for relay interruptions.
 69. `DONE` Create a HUD-facing JSON contract doc for the Second Life side.
 70. `DONE` Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
@@ -167,12 +167,16 @@ If you want the smartest immediate sequence, do these next:
 - Production activation is a deployment step: set `JLS_SIGNING_SECRET`, update the SL objects, then turn on `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 
 ## Readiness rule discovered during the 2026-04-09 SL source audit
-- We can honestly mark the checked-in HUD contract audit complete, but we should not claim the full SL object suite is source-audited until the chair, zone beacon, honey kiosk, order console, and other object scripts are exported into the repo.
+- We can honestly mark the checked-in HUD contract audit complete, but we should not claim the full SL object suite is source-audited until the chair, zone beacon, marketplace terminal, order console, and other object scripts are exported into the repo.
 - The new minimal HUD is reference-ready for backend verification, but it still needs a first real compile/run pass in Second Life before we call it SL-verified.
 
 ## Readiness rule discovered during the 2026-04-09 LSL package pass
 - Do not bury the actual in-world requirements in chat history. Keep one plain-English package manifest listing every SL test object, endpoint, and payload we need for honest full-game verification.
 - Never place `ADMIN_TOKEN` inside distributed public objects. Keep admin artifact/session/battle helpers owner-only and sandbox-only.
+
+## Readiness rule discovered during the 2026-04-09 marketplace direction pass
+- Public commerce should not splinter across multiple half-overlapping kiosks. Keep one marketplace terminal in-world and one aligned marketplace menu in the wearable HUD.
+- Identity or order selection is not the same thing as commerce. Route it through `/api/sync` with canonical order keys and keep the backend authoritative.
 
 ## Readiness rule discovered during structured logging work
 - Audit trails must never store raw secrets. Do not place `ADMIN_TOKEN`, shared SL tokens, or request signatures inside event metadata or logs.

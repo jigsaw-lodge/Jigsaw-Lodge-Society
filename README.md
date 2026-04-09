@@ -304,8 +304,8 @@ Teleporter
 Friends
 Recruiter
 Leaderboards
-Order kiosk
-Honey kiosk
+Marketplace terminal
+Order console
 Admin panel
 
 ----------------------------------------
@@ -339,8 +339,8 @@ ADMIN ARTIFACT TOOLING
 - POST `/api/admin/artifact/spawn` (header `X-Admin-Token` or `Authorization: Bearer <token>`) publishes a guarded artifact spawn event that feeds the worker, the artifact registry, and the WebSocket relay.
 - Use `npm run artifact-smoke` (same `ADMIN_TOKEN`, `BASE_URL`, `WS_URL`, and DB vars as the server) to triage artifact spawns, validate persistence, and watch the WebSocket/feed pipeline deliver the `artifact_spawn` payloads.
 - See `docs/secrets-and-startup.md` for the exact file names and startup guard behavior.
-- Refer to `docs/canonical-system-spec.md` and `docs/kiosk-menus.md` before tuning honey/order flow so values stay synced with the backend authority model.
-- The sample HUD page at `/frontend/index.html` mirrors `docs/kiosk-menus.md`, showing the canonical honey timers, cooldowns, multipliers, effect tooltips, and fixed order buttons that hit `/api/sync` so the backend remains the single source of truth.
+- Refer to `docs/canonical-system-spec.md` and `docs/kiosk-menus.md` before tuning marketplace or identity flow so values stay synced with the backend authority model.
+- The sample HUD page at `/frontend/index.html` mirrors `docs/kiosk-menus.md`, showing the current marketplace and identity guidance so the backend remains the single source of truth.
 
 ----------------------------------------
 EVENT LOOP

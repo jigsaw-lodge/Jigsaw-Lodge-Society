@@ -11,7 +11,7 @@ Reviewed:
 - `docs/lslexternals-2026-04-08.md`
 
 Important limit:
-- the repo currently includes the HUD source file, but not the actual chair, zone beacon, honey kiosk, order console, or other object scripts mentioned in the bundle doc
+- the repo currently includes the HUD source file, but not the actual chair, zone beacon, marketplace terminal, order console, or other object scripts mentioned in the bundle doc
 - those non-HUD objects can only be audited from documentation today, not from real source
 
 ## What matches the contract
@@ -64,7 +64,7 @@ The bundle doc names these objects:
 - zone beacon
 - world feed board
 - leaderboard board
-- honey kiosk
+- marketplace terminal
 - admin utility
 - order console
 
@@ -109,3 +109,20 @@ We can honestly mark the current checked-in HUD audit complete, but we should **
    - `docs/hud-contract.md`
    - `docs/sl-request-signing.md`
    - `docs/sl-object-setup-guide.md`
+
+## 2026-04-09 follow-up based on the user-provided full test bundle
+
+The user-provided bundle added important product direction:
+- public kiosks are being merged into one marketplace object
+- the wearable HUD should contain a marketplace menu
+- the event feedback layer remains one of the most important test objects
+
+That direction is good, but the pasted scripts still need contract corrections before deployment:
+- use `/api/...` routes, not bare `/event`
+- use signed requests or the shared-token fallback, not custom `key` secrets
+- read `world.events` / `world.players` / `world.battle`, not root-level arrays
+- use `architect`, `eye`, `black_sun`, and `neutral`, not `sun`
+- use `/api/sync` for order or zone sync instead of fake `hud_tick` payloads
+
+Reference:
+- [sl-full-test-bundle-audit-2026-04-09.md](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/docs/sl-full-test-bundle-audit-2026-04-09.md)
