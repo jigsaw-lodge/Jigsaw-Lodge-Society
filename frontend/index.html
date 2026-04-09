@@ -52,27 +52,58 @@
 
     <main class="grid">
       <section class="panel status-panel">
-        <h3>WORLD SNAPSHOT</h3>
+        <div class="status-header">
+          <div>
+            <h3>WORLD SNAPSHOT</h3>
+            <p class="status-copy">Observer truth surface for health, relay, feed, and battle state.</p>
+          </div>
+          <div id="observerPulse" class="observer-pulse observer-pending">Syncing observer</div>
+        </div>
         <div class="status-grid">
           <article class="metric-card">
             <span>API</span>
             <strong id="siteStatus">Checking</strong>
+            <small id="siteStatusHint">Waiting for API health</small>
+          </article>
+          <article class="metric-card">
+            <span>Worker</span>
+            <strong id="workerStatusMetric">Checking</strong>
+            <small id="workerStatusHint">Waiting for heartbeat</small>
+          </article>
+          <article class="metric-card">
+            <span>Relay</span>
+            <strong id="relayStatusMetric">Checking</strong>
+            <small id="relayStatusHint">Waiting for socket</small>
           </article>
           <article class="metric-card">
             <span>Snapshot</span>
             <strong id="snapshotTime">--</strong>
+            <small id="snapshotHint">No world snapshot yet</small>
+          </article>
+          <article class="metric-card metric-card-wide">
+            <span>Latest Feed</span>
+            <strong id="latestFeedMetric">Waiting</strong>
+            <small id="latestFeedHint">No live feed packet yet</small>
+          </article>
+          <article class="metric-card metric-card-wide">
+            <span>Battle State</span>
+            <strong id="battleStateMetric">Dormant</strong>
+            <small id="battleStateHint">Waiting for a world snapshot</small>
           </article>
           <article class="metric-card">
             <span>Active Sessions</span>
             <strong id="activeSessionsMetric">0</strong>
+            <small id="activeSessionsHint">Live ritual pairs</small>
           </article>
           <article class="metric-card">
             <span>Players 5m</span>
             <strong id="activePlayersMetric">0</strong>
+            <small id="activePlayersHint">Recent presence</small>
           </article>
           <article class="metric-card">
             <span>Treasury</span>
             <strong id="treasuryMetric">0</strong>
+            <small id="treasuryHint">Pentacle flow</small>
           </article>
         </div>
       </section>
@@ -213,8 +244,8 @@
         <h3>ZONES</h3>
         <div id="zones" class="zones-grid"></div>
         <div class="legend">
-          <span class="dot active"></span><small>Controlled</small>
-          <span class="dot enemy"></span><small>Contested</small>
+          <span class="dot active"></span><small>Live Ritual</small>
+          <span class="dot enemy"></span><small>Recent World Signal</small>
         </div>
       </section>
     </main>

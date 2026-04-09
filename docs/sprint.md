@@ -5,14 +5,14 @@ This is the single page to look at every day.
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 - `TODO` Task 95: Build the go/no-go dashboard/checklist from the health, smoke, alert, and release-gate evidence we now have.
-- `TODO` Task 63: Make the frontend display current health, latest feed, and battle state reliably.
+- `TODO` Task 70: Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
 
 ## Next (max 5)
-- `TODO` Task 68: Add a clear frontend "connection lost / reconnecting" state for relay interruptions.
-- `TODO` Task 70: Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
 - `TODO` Task 93-94: Run and archive the current-build load and pub/sub proof sweep.
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
 - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
+- `TODO` Task 90: Build a tiny internal admin panel or script bundle for common support and recovery actions.
+- `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 
 ## Blocked
 - `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
@@ -73,3 +73,6 @@ This is the single page to look at every day.
 - `DONE` Ops truth rule: for host-side observability, write health logs to the host repo, not only inside containers, or alert/report tooling will silently miss the real signal.
 - `DONE` Task 89: plain-English security review added in `docs/security-review.md`, with current truth on tokens, auth headers, CORS, rate limits, relay exposure, and audit trails.
 - `DONE` Security truth rule: admin Bearer auth and gameplay auth are not the same path; use signed requests (preferred) or `X-JLS-Token` for gameplay, and reserve `Authorization: Bearer` for admin routes unless code changes later.
+- `DONE` Task 63: the live website now shows separate API, worker, relay, snapshot, latest-feed, and battle-state observer cards, backed by real health and `/api/world` data instead of blended guesswork.
+- `DONE` Task 68: the website now shows a clear relay reconnecting/error state through the observer pulse and relay card, and the live domain was redeployed with that surface.
+- `DONE` Website truth rule: public observer surfaces must not mix fake gossip or random zone noise into live operational panels; decorative atmosphere is fine, but the dashboard itself must stay grounded in real relay and snapshot data.

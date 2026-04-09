@@ -82,11 +82,217 @@ const battleRightNameEl = document.getElementById("battleRightName");
 const battleRightPointsEl = document.getElementById("battleRightPoints");
 const battlePanelEl = document.getElementById("battleView");
 const siteStatusEl = document.getElementById("siteStatus");
+const siteStatusHintEl = document.getElementById("siteStatusHint");
+const workerStatusMetricEl = document.getElementById("workerStatusMetric");
+const workerStatusHintEl = document.getElementById("workerStatusHint");
+const relayStatusMetricEl = document.getElementById("relayStatusMetric");
+const relayStatusHintEl = document.getElementById("relayStatusHint");
 const snapshotTimeEl = document.getElementById("snapshotTime");
+const snapshotHintEl = document.getElementById("snapshotHint");
 const activeSessionsMetricEl = document.getElementById("activeSessionsMetric");
 const activePlayersMetricEl = document.getElementById("activePlayersMetric");
 const treasuryMetricEl = document.getElementById("treasuryMetric");
+const latestFeedMetricEl = document.getElementById("latestFeedMetric");
+const latestFeedHintEl = document.getElementById("latestFeedHint");
+const battleStateMetricEl = document.getElementById("battleStateMetric");
+const battleStateHintEl = document.getElementById("battleStateHint");
+const observerPulseEl = document.getElementById("observerPulse");
 const artifactsListEl = document.getElementById("artifactsList");
+const zonesEl = document.getElementById("zones");
+const relayHealthUrl = deriveRelayHealthUrl();
+
+const observerState = {
+  api: { ok: false, label: "Checking", hint: "Waiting for API health", tone: "warn" },
+  worker: { ok: false, label: "Checking", hint: "Waiting for heartbeat", tone: "warn" },
+  relay: { ok: false, label: "Checking", hint: "Waiting for socket", tone: "warn" },
+  snapshotAt: 0,
+  battleLabel: "Dormant",
+  battleHint: "Waiting for a world snapshot",
+  lastFeedLabel: "Waiting",
+  lastFeedHint: "No live feed packet yet",
+  lastFeedAt: 0,
+};
+
+function deriveRelayHealthUrl() {
+  try {
+    const parsed = new URL(wsUrl);
+    parsed.protocol = parsed.protocol === "wss:" ? "https:" : "http:";
+    parsed.pathname = "/health";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function clearStatusTone(el) {
+  if (!el) return;
+  el.classList.remove("status-good", "status-bad", "status-warn");
+}
+
+function applyStatusTone(el, tone) {
+  if (!el) return;
+  clearStatusTone(el);
+  if (tone === "good") el.classList.add("status-good");
+  if (tone === "bad") el.classList.add("status-bad");
+  if (tone === "warn") el.classList.add("status-warn");
+}
+
+function setStatusCard(valueEl, hintEl, label, hint, tone = "warn") {
+  if (valueEl) {
+    valueEl.textContent = label;
+    applyStatusTone(valueEl, tone);
+  }
+  if (hintEl) {
+    hintEl.textContent = hint || "";
+  }
+}
+
+function formatRelativeTime(timestampMs) {
+  if (!timestampMs) return "--";
+  const deltaMs = Math.max(0, Date.now() - Number(timestampMs));
+  const deltaSeconds = Math.round(deltaMs / 1000);
+  if (deltaSeconds < 5) return "just now";
+  if (deltaSeconds < 60) return `${deltaSeconds}s ago`;
+  const deltaMinutes = Math.round(deltaSeconds / 60);
+  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+  const deltaHours = Math.round(deltaMinutes / 60);
+  return `${deltaHours}h ago`;
+}
+
+function formatClockTime(timestampMs) {
+  if (!timestampMs) return "--";
+  const date = new Date(Number(timestampMs));
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function trimMessage(value, max = 56) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function renderObserverPulse() {
+  if (!observerPulseEl) return;
+  const snapshotFresh = observerState.snapshotAt && Date.now() - observerState.snapshotAt <= BATTLE_REFRESH_MS * 2;
+  let label = "Observer warming";
+  let tone = "warn";
+  if (observerState.api.ok && observerState.worker.ok && observerState.relay.ok && snapshotFresh) {
+    label = "Observer live";
+    tone = "good";
+  } else if (observerState.relay.label.toLowerCase().includes("reconnecting")) {
+    label = "Relay reconnecting";
+    tone = "warn";
+  } else if (observerState.api.ok || observerState.worker.ok || observerState.relay.ok) {
+    label = "Needs attention";
+    tone = "warn";
+  } else {
+    label = "Observer degraded";
+    tone = "bad";
+  }
+  observerPulseEl.textContent = label;
+  observerPulseEl.classList.remove("observer-good", "observer-bad", "observer-pending");
+  if (tone === "good") observerPulseEl.classList.add("observer-good");
+  else if (tone === "bad") observerPulseEl.classList.add("observer-bad");
+  else observerPulseEl.classList.add("observer-pending");
+}
+
+function renderObserverCards() {
+  setStatusCard(siteStatusEl, siteStatusHintEl, observerState.api.label, observerState.api.hint, observerState.api.tone);
+  setStatusCard(
+    workerStatusMetricEl,
+    workerStatusHintEl,
+    observerState.worker.label,
+    observerState.worker.hint,
+    observerState.worker.tone
+  );
+  setStatusCard(
+    relayStatusMetricEl,
+    relayStatusHintEl,
+    observerState.relay.label,
+    observerState.relay.hint,
+    observerState.relay.tone
+  );
+  setStatusCard(
+    snapshotTimeEl,
+    snapshotHintEl,
+    observerState.snapshotAt ? formatRelativeTime(observerState.snapshotAt) : "--",
+    observerState.snapshotAt ? `World generated ${formatClockTime(observerState.snapshotAt)}` : "No world snapshot yet",
+    observerState.snapshotAt ? (Date.now() - observerState.snapshotAt <= BATTLE_REFRESH_MS * 2 ? "good" : "warn") : "warn"
+  );
+  setStatusCard(
+    latestFeedMetricEl,
+    latestFeedHintEl,
+    observerState.lastFeedLabel,
+    observerState.lastFeedAt
+      ? `${formatRelativeTime(observerState.lastFeedAt)} • ${observerState.lastFeedHint}`
+      : observerState.lastFeedHint,
+    observerState.lastFeedAt ? "good" : "warn"
+  );
+  setStatusCard(
+    battleStateMetricEl,
+    battleStateHintEl,
+    observerState.battleLabel,
+    observerState.battleHint,
+    observerState.snapshotAt ? "good" : "warn"
+  );
+  renderObserverPulse();
+}
+
+function updateObserverHealthState(key, ok, label, hint, tone = ok ? "good" : "bad") {
+  observerState[key] = { ok, label, hint, tone };
+  renderObserverCards();
+}
+
+async function fetchHealthJson(url) {
+  if (!url) {
+    return { ok: false, label: "Unavailable", hint: "No health URL configured", tone: "warn" };
+  }
+  try {
+    const resp = await fetch(url, { cache: "no-store" });
+    const health = await resp.json().catch(() => ({}));
+    const healthy = resp.ok && Number(health.ok) === 1;
+    return {
+      ok: healthy,
+      label: healthy ? "Healthy" : `HTTP ${resp.status}`,
+      hint: healthy
+        ? `redis:${health.redis ?? "?"} • ${formatClockTime(health.time || Date.now())}`
+        : trimMessage(health.error || `Health check failed (${resp.status})`, 52),
+      tone: healthy ? "good" : "bad",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      label: "Offline",
+      hint: trimMessage(err.message || "Network error", 52),
+      tone: "bad",
+    };
+  }
+}
+
+async function refreshObserverHealth() {
+  const [apiState, workerState, relayState] = await Promise.all([
+    fetchHealthJson(`${baseUrl}/health`),
+    fetchHealthJson(`${baseUrl}/worker/heartbeat`),
+    fetchHealthJson(relayHealthUrl),
+  ]);
+  updateObserverHealthState("api", apiState.ok, apiState.label, apiState.hint, apiState.tone);
+  updateObserverHealthState("worker", workerState.ok, workerState.label, workerState.hint, workerState.tone);
+  updateObserverHealthState("relay", relayState.ok, relayState.label, relayState.hint, relayState.tone);
+}
+
+function recordFeedSignal(typeLabel, message) {
+  observerState.lastFeedAt = Date.now();
+  observerState.lastFeedLabel = trimMessage(typeLabel || "feed", 30) || "feed";
+  observerState.lastFeedHint = trimMessage(message || "Live packet received", 68) || "Live packet received";
+  renderObserverCards();
+}
 
 function refreshFlowHighlights(value = state.ritualProgress) {
   if (!flowListItems?.length) return;
@@ -183,23 +389,25 @@ function renderBattleBar(battle) {
   );
 }
 
-function formatSnapshotTime(value) {
-  if (!value) return "--";
-  const date = new Date(Number(value));
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
 function renderWorldMetrics(world = {}) {
   const metrics = world.metrics || {};
-  if (snapshotTimeEl) snapshotTimeEl.textContent = formatSnapshotTime(world.generated_at);
+  observerState.snapshotAt = Number(world.generated_at) || 0;
+  const battle = world.battle || {};
+  const left = battle.left || {};
+  const right = battle.right || {};
+  observerState.battleLabel = battle.unicode
+    ? `${Math.round(Number(battle.progress) || 0)}% ribbon`
+    : "Dormant";
+  observerState.battleHint = trimMessage(
+    battle.summary
+      || battle.ticker
+      || `${left.label || "Order"} ${left.points ?? 0} vs ${right.label || "Order"} ${right.points ?? 0}`,
+    72
+  ) || "Awaiting the next ritual push";
   if (activeSessionsMetricEl) activeSessionsMetricEl.textContent = String(metrics.active_sessions ?? 0);
   if (activePlayersMetricEl) activePlayersMetricEl.textContent = String(metrics.active_players_5m ?? 0);
   if (treasuryMetricEl) treasuryMetricEl.textContent = String(metrics.treasury_total_l ?? 0);
+  renderObserverCards();
 }
 
 function renderArtifacts(artifacts = []) {
@@ -237,6 +445,58 @@ function renderArtifacts(artifacts = []) {
   });
 }
 
+function renderZones(world = {}) {
+  if (!zonesEl) return;
+  zonesEl.innerHTML = "";
+  const zoneMap = new Map();
+
+  const bumpZone = (zoneName, field) => {
+    const zone = String(zoneName || "").trim();
+    if (!zone) return;
+    if (!zoneMap.has(zone)) {
+      zoneMap.set(zone, { zone, sessions: 0, artifacts: 0, events: 0 });
+    }
+    zoneMap.get(zone)[field] += 1;
+  };
+
+  for (const session of world.sessions || []) {
+    bumpZone(session.zone, "sessions");
+  }
+  for (const artifact of world.artifacts || []) {
+    bumpZone(artifact.location, "artifacts");
+  }
+  for (const event of world.events || []) {
+    const payload = event?.payload || {};
+    bumpZone(payload.zone || payload.location, "events");
+  }
+
+  const rows = [...zoneMap.values()].sort((a, b) => {
+    const sessionDelta = b.sessions - a.sessions;
+    if (sessionDelta) return sessionDelta;
+    const worldDelta = (b.artifacts + b.events) - (a.artifacts + a.events);
+    if (worldDelta) return worldDelta;
+    return a.zone.localeCompare(b.zone);
+  });
+
+  const visible = rows.slice(0, 32);
+  visible.forEach((item) => {
+    const zone = document.createElement("div");
+    zone.className = "zone";
+    if (item.sessions > 0) zone.classList.add("active");
+    else if (item.artifacts > 0 || item.events > 0) zone.classList.add("enemy");
+    zone.title = `${item.zone} • sessions ${item.sessions} • artifacts ${item.artifacts} • events ${item.events}`;
+    zonesEl.appendChild(zone);
+  });
+
+  const targetCount = Math.max(16, visible.length || 16);
+  while (zonesEl.children.length < targetCount) {
+    const zone = document.createElement("div");
+    zone.className = "zone";
+    zone.title = "No live zone signal yet";
+    zonesEl.appendChild(zone);
+  }
+}
+
 async function fetchWorldSnapshot() {
   try {
     const resp = await fetch(`${baseUrl}/world`, { cache: "no-store" });
@@ -246,17 +506,12 @@ async function fetchWorldSnapshot() {
     renderBattleBar(world.battle);
     renderWorldMetrics(world);
     renderArtifacts(world.artifacts);
-    if (siteStatusEl) {
-      siteStatusEl.textContent = "Live";
-      siteStatusEl.classList.remove("status-bad");
-      siteStatusEl.classList.add("status-good");
-    }
+    renderZones(world);
   } catch (err) {
-    if (siteStatusEl) {
-      siteStatusEl.textContent = "Delayed";
-      siteStatusEl.classList.remove("status-good");
-      siteStatusEl.classList.add("status-bad");
-    }
+    observerState.snapshotAt = 0;
+    observerState.battleLabel = "Stale";
+    observerState.battleHint = `World snapshot failed (${trimMessage(err.message, 48)})`;
+    renderObserverCards();
     console.warn("world snapshot refresh failed", err);
   }
 }
@@ -366,6 +621,7 @@ function updateProfile(event) {
 }
 
 function addFeed({ message, theme = themes.gossip }) {
+  if (!feedEl || !message) return;
   const p = document.createElement("p");
   const chip = document.createElement("span");
   chip.className = `theme-chip ${theme.colorClass}`;
@@ -387,19 +643,6 @@ function addGossip(message, theme = themes.gossip) {
 
 function addActionFeedback(message, success = true) {
   addGossip(`▵ ${message}`, success ? themes.matrix : themes.gossip);
-}
-
-function updateZones() {
-  const zonesEl = document.getElementById("zones");
-  zonesEl.innerHTML = "";
-  for (let i = 0; i < 32; i += 1) {
-    const zone = document.createElement("div");
-    zone.className = "zone";
-    const roll = Math.random();
-    if (roll > 0.85) zone.classList.add("enemy");
-    else if (roll > 0.6) zone.classList.add("active");
-    zonesEl.appendChild(zone);
-  }
 }
 
 function viewPanel(view) {
@@ -538,28 +781,51 @@ function themeFromEvent(event) {
 function connectRelay() {
   const socket = new WebSocket(wsUrl);
   socket.addEventListener("open", () => {
-    addGossip("Relay live — gossip circuits engaged", themes.matrix);
+    socket.send(JSON.stringify({ type: "subscribe", channel: "events_channel" }));
+    updateObserverHealthState("relay", true, "Socket live", "Subscribed to events_channel", "good");
+    addGossip("Relay live — observer channel engaged", themes.matrix);
   });
   socket.addEventListener("message", (event) => {
-    let data = event.data;
     let parsed = null;
-    let payload = null;
+    let payload = {};
     try {
       parsed = JSON.parse(event.data);
       payload = parsed.payload || parsed;
-      const hint = parsed.type || payload?.type || "event";
-      const theme = themeFromEvent(parsed);
-      const body = `▵ ${hint} • ${payload?.artifact_id || payload?.event_type || ""}`.trim();
-      addFeed({ message: body, theme });
-      updateProfile(parsed);
-      triggerEventOverlay(parsed.type || payload?.type || "default", payload);
-      if ((parsed.type || payload?.type) === "flow_update") {
-        triggerJealousyOverlay(payload);
+      const type = parsed.type || payload?.type || "event";
+      if (type === "connected" || type === "subscribed" || type === "pong" || type === "ack") {
+        return;
+      }
+      const normalizedType =
+        type === "feed" || type === "parcel_event"
+          ? payload?.event_type || type
+          : type;
+      const normalizedPayload =
+        type === "feed" || type === "parcel_event"
+          ? payload?.payload || payload
+          : payload;
+      const theme = themeFromEvent({ payload: normalizedPayload });
+      const messageText = trimMessage(
+        payload?.message
+          || `${normalizedType}${normalizedPayload?.artifact_id ? ` • ${normalizedPayload.artifact_id}` : ""}`,
+        90
+      );
+      addFeed({ message: `▵ ${messageText}`, theme });
+      recordFeedSignal(normalizedType, messageText);
+      updateProfile({ type: normalizedType, payload: normalizedPayload });
+      triggerEventOverlay(normalizedType, normalizedPayload);
+      if (normalizedType === "flow_update") {
+        triggerJealousyOverlay(normalizedPayload);
       }
     } catch {
-      addFeed({ message: `▵ raw: ${data}`, theme: themes.gossip });
+      const raw = trimMessage(event.data, 90);
+      addFeed({ message: `▵ raw • ${raw}`, theme: themes.gossip });
+      recordFeedSignal("raw", raw);
     }
-    if ((parsed?.type || payload?.type) === "battle_result") {
+    const normalizedType =
+      parsed?.type === "feed" || parsed?.type === "parcel_event"
+        ? payload?.event_type
+        : parsed?.type || payload?.type;
+    if (normalizedType === "battle_result" || normalizedType === "session_ended" || normalizedType === "artifact_spawn") {
       fetchWorldSnapshot();
     }
     if (Math.random() > 0.95) {
@@ -567,10 +833,12 @@ function connectRelay() {
     }
   });
   socket.addEventListener("close", () => {
+    updateObserverHealthState("relay", false, "Reconnecting", "Socket dropped, retry in 3s", "warn");
     addGossip("Relay disconnected — reconnection pending", themes.gossip);
     setTimeout(connectRelay, 3000);
   });
   socket.addEventListener("error", () => {
+    updateObserverHealthState("relay", false, "Socket error", "Check relay health or browser connection", "bad");
     addGossip("Relay error — check the matrix", themes.matrix);
   });
 }
@@ -629,11 +897,6 @@ async function sendAction(endpoint, payload = {}, message = "Action") {
   }
 }
 
-function startZonesLoop() {
-  updateZones();
-  setInterval(updateZones, 4000);
-}
-
 async function startRitual() {
   const result = await sendAction("/session/start", {}, "Start Ritual");
   if (result?.ok) {
@@ -674,42 +937,15 @@ async function applyHoney() {
   }
 }
 
-async function checkHealth() {
-  try {
-    const resp = await fetch(`${baseUrl}/health`, { cache: "no-store" });
-    const body = await resp.json().catch(() => ({}));
-    addFeed({
-      message: resp.ok
-        ? `▵ API healthy (redis:${body.redis ?? "?"})`
-        : `▵ API error ${resp.status}`,
-      theme: resp.ok ? themes.exchange : themes.gossip,
-    });
-    if (siteStatusEl) {
-      siteStatusEl.textContent = resp.ok ? "Healthy" : `API ${resp.status}`;
-      siteStatusEl.classList.toggle("status-good", resp.ok);
-      siteStatusEl.classList.toggle("status-bad", !resp.ok);
-    }
-  } catch (err) {
-    addFeed({
-      message: `▵ API unreachable: ${err.message}`,
-      theme: themes.gossip,
-    });
-    if (siteStatusEl) {
-      siteStatusEl.textContent = "Offline";
-      siteStatusEl.classList.remove("status-good");
-      siteStatusEl.classList.add("status-bad");
-    }
-  }
-}
-
 function updateHoneyTicker() {
   updateHoneyTimer();
+  renderObserverCards();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  checkHealth();
+  renderObserverCards();
+  refreshObserverHealth();
   connectRelay();
-  startZonesLoop();
   viewPanel("feed");
   startBtn?.addEventListener("click", startRitual);
   tickBtn?.addEventListener("click", tickRitual);
@@ -723,14 +959,5 @@ document.addEventListener("DOMContentLoaded", () => {
   addFeed({ message: "▵ System synced", theme: themes.matrix });
   fetchWorldSnapshot();
   setInterval(fetchWorldSnapshot, BATTLE_REFRESH_MS);
-  setInterval(() => {
-    const gossip = [
-      "Eyes wide shut circle whispering about the next ritual.",
-      "Stocks spike in zone 17; watchers are talking.",
-      "Matrix echo: someone saw the relay leak order 42.",
-      "Gossip girl says your avatar's been invited to a private ritual.",
-    ];
-    const pick = gossip[Math.floor(Math.random() * gossip.length)];
-    addGossip(pick);
-  }, 6500);
+  setInterval(refreshObserverHealth, 15000);
 });

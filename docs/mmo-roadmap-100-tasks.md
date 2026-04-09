@@ -94,12 +94,12 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Phase 7 - Relay, HUD, Frontend, And Web UX
 61. `DONE` Verify the relay sends both raw events and user-facing feed envelopes for every major event type.
 62. `DONE` Add relay tests for connection, disconnect, heartbeat, and feed delivery.
-63. `TODO` Make the frontend display current health, latest feed, and battle state reliably.
+63. `DONE` Make the frontend display current health, latest feed, and battle state reliably.
 64. `TODO` Make `/api/world` polling cadence match the overlay guidance.
 65. `TODO` Hook challenge, ritual, and honey state into the frontend UI.
 66. `TODO` Build a simple player dashboard showing XP, level, rituals, pentacles, and active boosts.
 67. `TODO` Make the cosmetics and kiosk surfaces read from live API data instead of mockups only.
-68. `TODO` Add a “connection lost / reconnecting” UI state for relay interruptions.
+68. `DONE` Add a “connection lost / reconnecting” UI state for relay interruptions.
 69. `DONE` Create a HUD-facing JSON contract doc for the Second Life side.
 70. `TODO` Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
 
@@ -144,14 +144,14 @@ If you want the smartest immediate sequence, do these next:
 
 1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 2. Task 95 - create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
-3. Task 63 - make the frontend display current health, latest feed, and battle state reliably.
-4. Task 68 - add a “connection lost / reconnecting” UI state for relay interruptions.
-5. Task 70 - write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
-6. Task 93 - run and record a real `k6` load test once the tool is installed.
-7. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
-8. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
-9. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
-10. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
+3. Task 70 - write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
+4. Task 93 - run and record a real `k6` load test once the tool is installed.
+5. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
+6. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
+7. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
+8. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
+9. Task 64 - make `/api/world` polling cadence match the overlay guidance.
+10. Task 65 - hook challenge, ritual, and honey state into the frontend UI.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
@@ -189,6 +189,10 @@ If you want the smartest immediate sequence, do these next:
 ## Readiness rule discovered during the 2026-04-09 security review
 - Admin Bearer auth and gameplay auth are not the same thing in the current build. Admin routes support `Authorization: Bearer`; gameplay routes should use signed requests or the legacy `X-JLS-Token` path.
 - Open CORS and a public relay are acceptable only while browser clients stay public-data-only. Add an origin allowlist and relay auth before private or privileged browser features ship.
+
+## Readiness rule discovered during live observer-site hardening
+- Public observer panels must use real relay packets and real world snapshots. Do not mix fake gossip loops or random zone animation into the same surface people use for QA and launch decisions.
+- A reconnecting relay state should be visible on the page itself, not only in console logs or backend health scripts.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`
