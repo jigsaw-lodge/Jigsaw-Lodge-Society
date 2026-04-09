@@ -57,3 +57,7 @@ bash "$ROOT_DIR/scripts/daily-archive.sh"
 echo
 echo "Done. Next:"
 bash "$ROOT_DIR/scripts/hasan-next.sh"
+
+echo
+echo "Hasan context pack:"
+bash "$ROOT_DIR/scripts/hasan-context-pack.sh"

@@ -124,6 +124,7 @@ Current fields:
 - `avatar_b`
 - `object_id`
 - `zone`
+- `order_type`
 - `started_at`
 - `last_tick`
 - `last_reward_at`

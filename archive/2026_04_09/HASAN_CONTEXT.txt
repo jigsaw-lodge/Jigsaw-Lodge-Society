@@ -1,0 +1,44 @@
+Hasan Context Pack
+UTC: 2026-04-09T19:23:30Z
+Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
+Branch: ## main...origin/main [ahead 5]
+Latest commit: 8ac19db Finish artifact lifecycle verification and clean test state
+Working tree: 20 changed path(s)
+
+Now:
+  - `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
+  - `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
+  - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
+
+Next:
+  - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
+  - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+  - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
+  - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
+  - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
+  - `TODO` Add a small “release note” habit: record evidence for each sprint.
+
+Blocked:
+  - (none)
+
+Recent wins:
+  - `DONE` Task 7: beginner local setup guide (`docs/local-setup.md`).
+  - `DONE` Spec decision: XP curve locked for 2-3 years to Level 100 (`docs/spec-decision-xp-curve.md`).
+  - `DONE` Task 5: k6 load testing via Docker Compose (`docs/load-testing.md`).
+  - `DONE` Task 15: basic API tests added (`test/api.test.js`) and runnable in-container.
+  - `DONE` Session end idempotency fixed (atomic Redis claim) and verified via `test/session-idempotency.test.js`.
+  - `DONE` Task 32: 15-minute + 45-minute ritual milestones now behave exactly once.
+  - `DONE` Task 35: automated coverage now includes session start, tick, timeout, phase-15, and normal end.
+  - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
+
+Recent commits:
+  - 8ac19db Finish artifact lifecycle verification and clean test state
+  - bfed0c3 Ship observer-mode website and prove session persistence
+  - 9e917dd Add timeout coverage and repair XP schema drift
+
+Key files:
+  - docs/sprint.md
+  - docs/mmo-roadmap-100-tasks.md
+  - docs/quick-commands.md
+  - docs/hud-contract.md
+  - docs/world-snapshot-explained.md

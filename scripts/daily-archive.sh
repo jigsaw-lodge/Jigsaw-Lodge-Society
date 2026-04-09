@@ -11,6 +11,7 @@ set -euo pipefail
 #     DEBUG_NOTES.txt
 #     ARCHITECTURE_UPDATES.txt
 #     NEXT_ACTIONS.txt
+#     HASAN_CONTEXT.txt
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DATE_DIR=$(date -u +%Y_%m_%d)
@@ -24,7 +25,8 @@ touch \
   "$OUT_DIR/ENGINE_PROGRESS.txt" \
   "$OUT_DIR/DEBUG_NOTES.txt" \
   "$OUT_DIR/ARCHITECTURE_UPDATES.txt" \
-  "$OUT_DIR/NEXT_ACTIONS.txt"
+  "$OUT_DIR/NEXT_ACTIONS.txt" \
+  "$OUT_DIR/HASAN_CONTEXT.txt"
 
 {
   echo "Jigsaw Lodge Society - Daily Archive"
@@ -36,5 +38,9 @@ touch \
   echo "  docker-compose -f $ROOT_DIR/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js"
   echo
 } >> "$OUT_DIR/SYSTEM_STATUS.txt"
+
+if [[ -f "$ROOT_DIR/scripts/hasan-context-pack.sh" ]]; then
+  bash "$ROOT_DIR/scripts/hasan-context-pack.sh" --write "$OUT_DIR/HASAN_CONTEXT.txt" >/dev/null
+fi
 
 echo "Archive created at: $OUT_DIR"

@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS sessions(
   duration BIGINT DEFAULT 0,
   ended_at BIGINT DEFAULT 0,
   watchers INT DEFAULT 0,
-  group_tag INT DEFAULT 0
+  group_tag INT DEFAULT 0,
+  order_type TEXT DEFAULT 'neutral'
 );
 
 CREATE TABLE IF NOT EXISTS pairs(
@@ -182,9 +183,26 @@ const PLAYER_COLUMNS = new Set([
   "equip_slot3",
 ]);
 
+const SESSION_COLUMNS = new Set([
+  "avatar_a",
+  "avatar_b",
+  "object_id",
+  "zone",
+  "started_at",
+  "last_tick",
+  "last_reward_at",
+  "active",
+  "duration",
+  "ended_at",
+  "watchers",
+  "group_tag",
+  "order_type",
+]);
+
 async function ensureSchema() {
   await pool.query(INIT_SQL);
   await pool.query(`ALTER TABLE IF EXISTS players ALTER COLUMN xp TYPE NUMERIC USING xp::numeric`);
+  await pool.query(`ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS order_type TEXT DEFAULT 'neutral'`);
 }
 
 async function query(text, params = []) {
@@ -207,52 +225,35 @@ async function updatePlayer(avatar, fields) {
 }
 
 async function saveSession(sessionId, data = {}) {
-  if (!sessionId) return;
-  const payload = {
-    avatar_a: data.avatar_a || null,
-    avatar_b: data.avatar_b || null,
-    object_id: data.object_id || null,
-    zone: data.zone || null,
-    started_at: data.started_at || 0,
-    last_tick: data.last_tick || 0,
-    last_reward_at: data.last_reward_at || 0,
-    active: !!data.active,
-    duration: data.duration || 0,
-    ended_at: data.ended_at || 0,
-    watchers: data.watchers || 0,
-    group_tag: data.group_tag || 0,
-  };
+  if (!sessionId || !data || typeof data !== "object") return;
+
+  const payload = {};
+  if (Object.prototype.hasOwnProperty.call(data, "order")) {
+    payload.order_type = String(data.order || "neutral");
+  }
+  if (Object.prototype.hasOwnProperty.call(data, "order_type")) {
+    payload.order_type = String(data.order_type || "neutral");
+  }
+
+  for (const key of SESSION_COLUMNS) {
+    if (key === "order_type") continue;
+    if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
+    payload[key] = key === "active" ? Boolean(data[key]) : data[key];
+  }
+
+  const entries = Object.entries(payload);
+  if (!entries.length) return;
+
+  const columns = entries.map(([key]) => key);
+  const placeholders = entries.map((_, idx) => `$${idx + 2}`);
+  const updates = columns.map((column) => `${column} = EXCLUDED.${column}`);
+
   await pool.query(
-    `INSERT INTO sessions(session_id, avatar_a, avatar_b, object_id, zone, started_at, last_tick, last_reward_at, active, duration, ended_at, watchers, group_tag)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    `INSERT INTO sessions(session_id, ${columns.join(", ")})
+     VALUES($1, ${placeholders.join(", ")})
      ON CONFLICT (session_id) DO UPDATE SET
-       avatar_a = EXCLUDED.avatar_a,
-       avatar_b = EXCLUDED.avatar_b,
-       object_id = EXCLUDED.object_id,
-       zone = EXCLUDED.zone,
-       started_at = EXCLUDED.started_at,
-       last_tick = EXCLUDED.last_tick,
-       last_reward_at = EXCLUDED.last_reward_at,
-       active = EXCLUDED.active,
-       duration = EXCLUDED.duration,
-       ended_at = EXCLUDED.ended_at,
-       watchers = EXCLUDED.watchers,
-       group_tag = EXCLUDED.group_tag`,
-    [
-      sessionId,
-      payload.avatar_a,
-      payload.avatar_b,
-      payload.object_id,
-      payload.zone,
-      payload.started_at,
-      payload.last_tick,
-      payload.last_reward_at,
-      payload.active,
-      payload.duration,
-      payload.ended_at,
-      payload.watchers,
-      payload.group_tag,
-    ]
+       ${updates.join(", ")}`,
+    [sessionId, ...entries.map(([, value]) => value)]
   );
 }
 
@@ -531,7 +532,7 @@ async function listPairs(limit = 25) {
 async function listActiveSessions(limit = 25) {
   const n = Math.max(1, Math.min(200, Number(limit) || 25));
   const { rows } = await pool.query(
-    `SELECT session_id, avatar_a, avatar_b, object_id, zone, started_at, last_tick, last_reward_at, duration, ended_at, watchers, group_tag
+    `SELECT session_id, avatar_a, avatar_b, object_id, zone, started_at, last_tick, last_reward_at, duration, ended_at, watchers, group_tag, order_type
      FROM sessions
      WHERE active = TRUE
      ORDER BY started_at DESC

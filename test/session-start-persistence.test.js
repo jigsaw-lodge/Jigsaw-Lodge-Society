@@ -69,6 +69,7 @@ test("session start persists to Redis and Postgres", async () => {
       partner: b,
       zone: "0:0",
       object_id: "chair-ritual-alpha",
+      order: "architect",
     });
     assert.equal(start.res.status, 200, start.text);
     assert.equal(start.body?.ok, true);
@@ -85,7 +86,7 @@ test("session start persists to Redis and Postgres", async () => {
       ]);
       if (linkA !== sessionId || linkB !== sessionId) return false;
       const result = await db.query(
-        `SELECT session_id, avatar_a, avatar_b, object_id, zone, active
+        `SELECT session_id, avatar_a, avatar_b, object_id, zone, active, order_type
          FROM sessions
          WHERE session_id = $1`,
         [sessionId]
@@ -97,7 +98,7 @@ test("session start persists to Redis and Postgres", async () => {
 
     const sessionHash = await redis.hGetAll(`jls:session:${sessionId}`);
     const dbResult = await db.query(
-      `SELECT session_id, avatar_a, avatar_b, object_id, zone, active
+      `SELECT session_id, avatar_a, avatar_b, object_id, zone, active, order_type
        FROM sessions
        WHERE session_id = $1`,
       [sessionId]
@@ -114,6 +115,7 @@ test("session start persists to Redis and Postgres", async () => {
     assert.equal(row.object_id, "chair-ritual-alpha");
     assert.equal(row.zone, "0:0");
     assert.equal(row.active, true);
+    assert.equal(row.order_type, "architect");
     assert.equal([row.avatar_a, row.avatar_b].sort().join(":"), [a, b].sort().join(":"));
   } finally {
     await db.end();

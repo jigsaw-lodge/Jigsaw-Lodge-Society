@@ -105,15 +105,32 @@ function validateApiToken(req, body) {
   }
 }
 
+function sanitizeOrderValue(value) {
+  const order = sanitizeText(value || "", "").toLowerCase();
+  return ALLOWED_ORDERS.has(order) ? order : "";
+}
+
 function safeEventPayload(body) {
   return {
     avatar: sanitizeAvatar(body.avatar),
     action: sanitizeAction(body.action || body.type || ""),
     zone: sanitizeZone(body.zone),
+    order: sanitizeOrderValue(body.order),
+    group: Boolean(body.group),
     watchers: Number.isFinite(Number(body.watchers)) ? Number(body.watchers) : 0,
     group_tag: Number.isFinite(Number(body.group_tag)) ? Number(body.group_tag) : 0,
     object_id: sanitizeText(body.object_id || body.object || body.chair || "", ""),
     partner: sanitizeAvatar(body.partner || body.partner_avatar),
+    session_id: sanitizeText(body.session_id || "", ""),
+    winner: sanitizeAvatar(body.winner),
+    loser: sanitizeAvatar(body.loser),
+    type: sanitizeText(body.type || "", ""),
+    honey: sanitizeText(body.honey || "", ""),
+    tier: sanitizeText(body.tier || "", ""),
+    amount: Number.isFinite(Number(body.amount)) ? Number(body.amount) : 0,
+    x: Number.isFinite(Number(body.x)) ? Number(body.x) : 0,
+    y: Number.isFinite(Number(body.y)) ? Number(body.y) : 0,
+    z: Number.isFinite(Number(body.z)) ? Number(body.z) : 0,
     ts: Math.floor(nowMs() / 1000),
   };
 }
@@ -202,8 +219,7 @@ function sanitizeArtifactPayload(body = {}) {
   const location = sanitizeZone(body.location || body.zone);
   const effect = sanitizeText(body.effect_type || "", "");
   const normalizedEffect = ALLOWED_ARTIFACT_EFFECTS.has(effect) ? effect : "";
-  const order = sanitizeText(body.order || "", "");
-  const normalizedOrder = ALLOWED_ORDERS.has(order) ? order : "";
+  const normalizedOrder = sanitizeOrderValue(body.order);
   return {
     artifact_id: artifactId,
     type: sanitizeText(body.type || body.artifact_type || "", ""),
@@ -219,9 +235,9 @@ function sanitizeArtifactPayload(body = {}) {
   };
 }
 
-async function publishApiEvent(type, body) {
+async function publishApiEvent(type, body, meta = {}) {
   const payload = safeEventPayload(body);
-  await publishEvent(redis, type, payload);
+  await publishEvent(redis, type, payload, meta);
   return payload;
 }
 
@@ -283,6 +299,7 @@ function registerRoutes() {
     partner: sanitizeAvatar(body.partner || body.partner_avatar),
     object_id: sanitizeText(body.object_id || body.object || body.chair || "", ""),
     zone: sanitizeZone(body.zone),
+    order: sanitizeOrderValue(body.order),
     session_id: sanitizeText(body.session_id || "", ""),
     watchers: Number.isFinite(Number(body.watchers)) ? Number(body.watchers) : 0,
     group_tag: Number.isFinite(Number(body.group_tag)) ? Number(body.group_tag) : 0,

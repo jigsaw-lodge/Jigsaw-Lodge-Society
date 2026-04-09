@@ -16,6 +16,10 @@ const {
 const { sanitizeAvatar, sanitizeZone, sanitizeText } = require("../services/validation");
 const db = require("../services/database");
 const { levelFromTotalXp } = require("../services/xpCurve");
+const {
+  deriveOrderMultiplier,
+  nextZonePressureState,
+} = require("../services/zonePressure");
 
 const logger = pino({ level: process.env.LOG_LEVEL || "info" });
 
@@ -67,9 +71,7 @@ const CHALLENGE_TARGET_MONTHLY = Number(process.env.CHALLENGE_TARGET_MONTHLY || 
 const CHALLENGE_TARGET_QUARTERLY = Number(process.env.CHALLENGE_TARGET_QUARTERLY || 300);
 const SURGE_WINDOW_MS = 7000;
 const SURGE_PENDING_PREFIX = "jls:surge:pending:";
-const ZONE_PRESSURE_DECAY = 0.98;
 const ZONE_PRESSURE_TICK_MS = 500;
-const ZONE_FLIP_THRESHOLD = 100;
 
 const redis = createRedisClient({ url: REDIS_URL });
 const sub = redis.duplicate();
@@ -324,13 +326,6 @@ function deriveZonePressure(session, players = []) {
   return Math.min(100, Math.round(base));
 }
 
-function deriveOrderMultiplier(order) {
-  const key = String(order || "neutral").toLowerCase();
-  if (key === "dominant") return 0.85;
-  if (key === "weak") return 1.25;
-  return 1;
-}
-
 function deriveChallengeProgress(players = []) {
   if (!players.length) {
     return { daily: 0, weekly: 0, monthly: 0, quarterly: 0 };
@@ -432,41 +427,42 @@ async function getRelevantArtifacts(zone) {
   });
 }
 
-async function applyZonePressureTick(zoneId, delta = 0, orderMultiplier = 1, ownerHint = "") {
+async function applyZonePressureTick(zoneId, players = 0, orderMultiplier = 1, ownerHint = "") {
   const zone = sanitizeZone(zoneId);
   if (!zone) return null;
   const existing = (await db.getZone(zone)) || {};
-  const current = toNumber(existing.pressure, 0);
-  let pressure = current * ZONE_PRESSURE_DECAY;
-  pressure += Math.max(0, delta * orderMultiplier);
-  let owner = existing.owner || "";
-  let lastFlip = toInt(existing.last_flip, 0);
-  let flipped = false;
-
-  if (pressure >= ZONE_FLIP_THRESHOLD) {
-    pressure = 0;
-    owner = String(ownerHint || existing.owner || "");
-    lastFlip = nowMs();
-    flipped = true;
-  }
+  const result = nextZonePressureState({
+    pressure: existing.pressure,
+    players,
+    orderMultiplier,
+    owner: existing.owner || "",
+    ownerHint,
+    now: nowMs(),
+  });
+  const lastFlip = result.flipped ? result.last_flip : toInt(existing.last_flip, 0);
 
   await db.upsertZone(zone, {
-    pressure,
-    owner,
+    pressure: result.pressure,
+    owner: result.owner,
     last_flip: lastFlip,
     updated_at: nowMs(),
   });
 
-  if (flipped) {
+  if (result.flipped) {
     await emitWorkerEvent("zone_flip", {
       zone,
-      owner,
-      pressure,
+      owner: result.owner,
+      pressure: result.pressure,
       last_flip: lastFlip,
     });
   }
 
-  return { zone, pressure, owner, flipped };
+  return {
+    zone,
+    pressure: result.pressure,
+    owner: result.owner,
+    flipped: result.flipped,
+  };
 }
 
 async function applyArtifactModifiers(player, baseXp, context = {}) {
@@ -1933,6 +1929,8 @@ function scheduleZonePressure() {
     try {
       const sessionKeys = await gatherSessionKeys(`${SESSION_PREFIX}*`, 200);
       const now = nowMs();
+      const zoneTallies = new Map();
+
       for (const key of sessionKeys) {
         const hash = await redis.hGetAll(key);
         if (!hash || Object.keys(hash).length === 0) continue;
@@ -1941,10 +1939,21 @@ function scheduleZonePressure() {
         const zone = sanitizeZone(hash.zone || "");
         if (!zone) continue;
         const participants = [hash.avatar_a, hash.avatar_b].filter(Boolean).length;
-        const pressureDelta = participants * 0.2;
-        const order = String(hash.order || "neutral");
-        const orderMult = deriveOrderMultiplier(order);
-        await applyZonePressureTick(zone, pressureDelta, orderMult, order);
+        if (participants <= 0) continue;
+        const order = String(hash.order || "neutral").toLowerCase() || "neutral";
+        const tally = zoneTallies.get(zone) || { players: 0, orders: new Map() };
+        tally.players += participants;
+        tally.orders.set(order, (tally.orders.get(order) || 0) + participants);
+        zoneTallies.set(zone, tally);
+      }
+
+      for (const [zone, tally] of zoneTallies.entries()) {
+        const rankedOrders = [...tally.orders.entries()].sort(
+          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+        );
+        const ownerHint = rankedOrders[0]?.[0] || "neutral";
+        const orderMult = deriveOrderMultiplier(ownerHint);
+        await applyZonePressureTick(zone, tally.players, orderMult, ownerHint);
       }
     } catch (err) {
       logger.error({ err, args: err?.args, command: err?.command }, "zone pressure tick failed");

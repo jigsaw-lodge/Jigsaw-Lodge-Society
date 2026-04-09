@@ -80,10 +80,10 @@ The goal is not to finish everything at once. The goal is to always know the nex
 50. `TODO` Create one admin report that shows honey use, pentacle flow, and treasury totals.
 
 ## Phase 6 - World State, Battles, Zones, And Artifacts
-51. `DOING` Finish the `world` snapshot so it includes players, pairs, events, battle, metrics, and active artifacts as promised.
+51. `DONE` Finish the `world` snapshot so it includes players, pairs, events, battle, metrics, and active artifacts as promised.
 52. `DONE` Make battle bar data always return a valid object instead of `null`.
-53. `TODO` Verify zone pressure decay and flip logic match the design spec.
-54. `TODO` Add tests for zone flips and battle resolution.
+53. `DONE` Verify zone pressure decay and flip logic match the design spec.
+54. `DONE` Add tests for zone flips and battle resolution.
 55. `DONE` Ensure artifact spawn, registration, expiry, and active-state lookup are all consistent.
 56. `DONE` Add artifact prune verification so expired artifacts stop affecting gameplay.
 57. `DONE` Surface active artifacts in `/api/world` for the frontend and HUD.
@@ -144,18 +144,22 @@ If you want the smartest immediate sequence, do these next:
 
 1. Task 9 - remove stale/duplicate startup paths so there is one clear local boot flow.
 2. Task 10 - add a “first 15 minutes” onboarding section.
-3. Task 51 - finish `/api/world` snapshot coverage (players/pairs/metrics completeness).
-4. Task 53 - verify zone pressure decay and flip logic match the design spec.
-5. Task 54 - add tests for zone flips and battle resolution.
-6. Task 61 - verify the relay sends both raw events and user-facing feed envelopes.
-7. Task 62 - add relay tests for connection, disconnect, heartbeat, and feed delivery.
-8. Task 73 - add request signing or token handling that is safe for in-world objects.
-9. Task 74 - verify furniture objects can start and maintain sessions correctly.
+3. Task 61 - verify the relay sends both raw events and user-facing feed envelopes.
+4. Task 62 - add relay tests for connection, disconnect, heartbeat, and feed delivery.
+5. Task 73 - add request signing or token handling that is safe for in-world objects.
+6. Task 74 - verify furniture objects can start and maintain sessions correctly.
+7. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
+8. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
+9. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
 10. Task 96 - rewrite the launch checklist to reflect current truth only.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
 - Shared test leftovers in zones like `0:0` can silently skew XP and make Second Life verification harder.
+
+## Readiness rule discovered during route verification
+- Do not let generic API event sanitizing strip route-specific worker fields.
+- `battle_resolve`, `purchase`, `honey_used`, `challenge_claim`, and sync/session payloads need their typed fields preserved or the worker quietly loses authority inputs.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

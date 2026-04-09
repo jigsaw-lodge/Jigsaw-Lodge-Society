@@ -53,6 +53,11 @@ Show current "Now/Next" from sprint board:
 bash scripts/hasan-next.sh
 ```
 
+Generate Hasan's compact token-saver brief:
+```sh
+bash scripts/hasan-context-pack.sh
+```
+
 Dev mode (hot reload, avoid rebuild loops):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/dev-up.sh

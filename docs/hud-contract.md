@@ -75,6 +75,7 @@ Request JSON:
   "partner": "uuid",
   "object_id": "uuid",
   "zone": "0:0",
+  "order": "architect",
   "watchers": 0,
   "group_tag": 0,
   "token": "optional-shared-token"
@@ -103,11 +104,17 @@ Request JSON:
 {
   "avatar": "uuid",
   "zone": "0:0",
+  "order": "architect",
   "watchers": 0,
   "group_tag": 0,
   "token": "optional-shared-token"
 }
 ```
+
+Notes:
+- `order` is optional on session routes.
+- When present, it should be one of `architect`, `eye`, `black_sun`, or `neutral`.
+- This helps zone ownership and shared-world snapshots stay meaningful without giving SL authority over rewards.
 
 Response JSON:
 ```json

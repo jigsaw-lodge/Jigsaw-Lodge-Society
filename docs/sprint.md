@@ -3,14 +3,15 @@
 This is the single page to look at every day.
 
 ## Now (max 3)
-- `TODO` Task 51: Finish `/api/world` snapshot completeness (players/pairs/metrics) and lock the response shape.
-- `TODO` Task 53-54: Verify zone pressure decay/flip behavior and add a matching automated test.
+- `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
+- `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
 - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
 
 ## Next (max 5)
-- `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
-- `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
 - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
+- `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+- `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
+- `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Add a small “release note” habit: record evidence for each sprint.
 
@@ -36,6 +37,12 @@ This is the single page to look at every day.
 - `DONE` Test hygiene rule locked: automated artifact checks now use isolated zones and clean up their own artifacts.
 - `DONE` Production cleanup: removed stale test artifacts from shared zone `0:0` so live XP tests are no longer polluted.
 - `DONE` Task 60: added `docs/world-snapshot-explained.md` for the live snapshot contract.
+- `DONE` Task 51: `/api/world` now carries a stronger active-session contract, including persisted `order_type`, and is verified by route + integration tests.
+- `DONE` Task 53: zone pressure math now matches the documented `players ^ 0.75` formula and flips are verified against the live worker.
+- `DONE` Task 54: automated coverage now proves both zone flips and battle resolution behavior.
+- `DONE` Fixed a real DB integrity bug: partial `saveSession()` updates no longer blank `active`, avatars, object, zone, or order in Postgres.
+- `DONE` Fixed a real API queue bug: typed fields for battle/purchase/honey/challenge/sync payloads are now preserved for the worker.
+- `DONE` Installed Hasan's token-saver workflow: `scripts/hasan-context-pack.sh` plus automatic `HASAN_CONTEXT.txt` archive snapshots.
 - `DONE` Website observer mode upgraded with live world metrics, artifact ledger, and a repeatable frontend deploy path.
 - `DONE` Task 52: battle bar is never null (`services/battleBar.js`).
 - `DONE` Task 69: HUD contract doc locked (`docs/hud-contract.md`).

@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS sessions(
   duration BIGINT DEFAULT 0,
   ended_at BIGINT DEFAULT 0,
   watchers INT DEFAULT 0,
-  group_tag INT DEFAULT 0
+  group_tag INT DEFAULT 0,
+  order_type TEXT DEFAULT 'neutral'
 );
 
 CREATE TABLE IF NOT EXISTS pairs(
