@@ -1,9 +1,9 @@
 Hasan Context Pack
-UTC: 2026-04-09T19:58:23Z
+UTC: 2026-04-09T19:59:08Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 9]
-Latest commit: 304fcb8 Document signing activation step
-Working tree: 11 changed path(s)
+Branch: ## main...origin/main [ahead 10]
+Latest commit: 32c8e68 Finish SL setup docs and truth-check launch board
+Working tree: 1 changed path(s)
 
 Model mix:
   - Hasan coordinator: stronger model for planning, risk calls, and final decisions
@@ -37,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - 32c8e68 Finish SL setup docs and truth-check launch board
   - 304fcb8 Document signing activation step
   - c115900 Add SL request signing and furniture bridge
-  - 06ba2fb Verify relay envelopes and add Hasan worker packs
 
 Key files:
   - docs/sprint.md
