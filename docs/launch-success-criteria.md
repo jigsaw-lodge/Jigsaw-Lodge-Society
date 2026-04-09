@@ -20,7 +20,7 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Infrastructure as code:** script db/redis backups, schema migrations (`init.sql` + any new migrations), and environment provisioning so new environments mirror prod.
 
 ## Telemetry & alerting
-- **Logging:** centralize logs (backend, worker, relay) with structured metadata (level, event type, client info) and retain at least 7 days.  
+- **Logging:** centralize logs (backend, worker, relay) with structured metadata (level, component, event, outcome, route, client info) and retain at least 7 days. Keep raw secrets out of logs and event metadata.  
 - **Metrics:** expose latency, error rate, queue depth, connection count, CPU/memory, WebSocket ping/pong, and artifact pipeline throughput.  
 - **Alerts:** trigger on thresholds such as queue >80% length, latency ≥400 ms, rate limit rejections spiking, or OOM (code 137) in containers.
 - **Artifact pipeline validation:** continuously run `npm run artifact-smoke` (or equivalent) so spawn→relay→persistence is verified per deploy; tie failure to deploy gating.
@@ -29,7 +29,7 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Secrets management:** store `ADMIN_TOKEN`, DB credentials, and relay configs in a vault; roll secrets regularly and do not hardcode in repo.  
 - **Token enforcement:** backend refuses to start without `ADMIN_TOKEN` (already in place). Ensure artifact smoke/CI uses unique tokens per environment.  
 - **Rate limiting & CORS:** enforce the 800 ms rate limit, validate CORS headers when the frontend is open to players, and ensure `X-JLS-Token`/`Authorization` flows cover both API and WebSocket (relay).  
-- **Auditability:** log admin artifact spawns, worker events, and relay subscriptions for traceability.
+- **Auditability:** log admin artifact spawns, worker events, and relay subscriptions for traceability without storing raw tokens or request signatures.
 
 ## Runbooks & readiness
 - **Recovery steps:** document how to restart the stack (including `docker-compose down/up`), verify relay/client connectivity, and replay feeds (e.g., the Redis publish helper you already used).  
@@ -37,7 +37,7 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Team signoff:** obtain confirmation from infrastructure, ops, gameplay, and security owners that their checklist items (backups, load tests, common tooling) are green before launch.
 
 ## Launch Ready Evidence
-- **QA Summary:** the current source of truth is `docs/launch-100-checklist.md`, which now records only `Verified (date)` or `Needs Re-Verify` rows. On 2026-04-09, API health, worker heartbeat, relay health, artifact smoke, and the full backend suite were freshly verified on the current build.
+- **QA Summary:** the current source of truth is `docs/launch-100-checklist.md`, which now records only `Verified (date)` or `Needs Re-Verify` rows. On 2026-04-09, API health, worker heartbeat, relay health, artifact smoke, and the full backend suite (`30/30`) were freshly verified on the current build.
 - **Go/No-Go:** current call is `NO-GO` until the remaining `Needs Re-Verify` launch rows are refreshed and one full Second Life end-to-end pass is recorded.
 - **Next steps:** use the checklist to drive the next proof sweep: rerun scaling and restart evidence on the current build, complete the SL end-to-end capture, and move signed SL traffic from implemented-in-code to fully deployed in production.
 

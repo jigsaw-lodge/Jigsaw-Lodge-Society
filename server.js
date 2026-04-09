@@ -24,6 +24,11 @@ const {
   sanitizeAction,
 } = require("./services/validation");
 const db = require("./services/database");
+const {
+  buildRequestLogContext,
+  detectAdminAuthSource,
+  serializeError,
+} = require("./services/structuredLogging");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -48,7 +53,7 @@ const STATIC_CANDIDATES = [
   path.join(__dirname, "..", "public"),
 ].filter(Boolean);
 
-const logger = pino({ level: process.env.LOG_LEVEL || "info" });
+const logger = pino({ level: process.env.LOG_LEVEL || "info" }).child({ component: "api" });
 
 if (!ADMIN_TOKEN) {
   logger.error(
@@ -186,6 +191,64 @@ function getAdminTokenFromRequest(req) {
   return bodyToken;
 }
 
+function logApiInfo(event, req, body, extra = {}, message = event) {
+  logger.info(
+    {
+      event,
+      ...buildRequestLogContext(req, body, extra),
+    },
+    message
+  );
+}
+
+function logApiWarn(event, req, body, extra = {}, message = event) {
+  logger.warn(
+    {
+      event,
+      ...buildRequestLogContext(req, body, extra),
+    },
+    message
+  );
+}
+
+function logApiFailure(event, req, body, err, extra = {}, message = event) {
+  const payload = {
+    event,
+    ...buildRequestLogContext(req, body, extra),
+    err: serializeError(err),
+  };
+  if (err?.status && err.status < 500) {
+    logger.warn(payload, message);
+    return;
+  }
+  logger.error(payload, message);
+}
+
+function rejectRequest(req, res, status, error, event, body, extra = {}, message = error) {
+  logApiWarn(
+    event,
+    req,
+    body,
+    {
+      outcome: "rejected",
+      status,
+      error,
+      ...extra,
+    },
+    message
+  );
+  return res.status(status).json({ error });
+}
+
+function adminEventMeta(req, route) {
+  return {
+    source: "admin",
+    route,
+    triggered_by: "admin",
+    admin_auth_source: detectAdminAuthSource(req, req.body || {}),
+  };
+}
+
 function ensureAdminRequest(req) {
   if (!ADMIN_TOKEN) {
     const err = new Error("admin_access_disabled");
@@ -237,7 +300,10 @@ function sanitizeArtifactPayload(body = {}) {
 
 async function publishApiEvent(type, body, meta = {}) {
   const payload = safeEventPayload(body);
-  await publishEvent(redis, type, payload, meta);
+  await publishEvent(redis, type, payload, {
+    source: "api",
+    ...meta,
+  });
   return payload;
 }
 
@@ -273,15 +339,17 @@ function registerRoutes() {
 
   app.post("/api/event", async (req, res) => {
     const body = req.body || {};
+    let action = "";
+    let legacySessionEvent = "";
     try {
       const avatar = sanitizeAvatar(body.avatar);
-      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
-      const action = sanitizeAction(body.action || body.type || "event");
-      if (!action) return res.status(400).json({ error: "invalid_action" });
+      if (!avatar) return rejectRequest(req, res, 400, "invalid_avatar", "api.event", body);
+      action = sanitizeAction(body.action || body.type || "event");
+      if (!action) return rejectRequest(req, res, 400, "invalid_action", "api.event", body);
       await validateApiAuth(req, body, action);
-      const legacySessionEvent = legacySessionEventType(action);
+      legacySessionEvent = legacySessionEventType(action);
       if (legacySessionEvent === "session_start") {
-        const result = await queueSessionStart(body);
+        const result = await queueSessionStart(body, { route: "/api/event", legacy_action: action });
         return res.json({
           ok: true,
           queued: true,
@@ -294,7 +362,7 @@ function registerRoutes() {
         });
       }
       if (legacySessionEvent === "session_tick") {
-        const result = await queueSessionTick(body);
+        const result = await queueSessionTick(body, { route: "/api/event", legacy_action: action });
         return res.json({
           ok: true,
           queued: true,
@@ -304,7 +372,7 @@ function registerRoutes() {
         });
       }
       if (legacySessionEvent === "session_end") {
-        const result = await queueSessionEnd(body);
+        const result = await queueSessionEnd(body, { route: "/api/event", legacy_action: action });
         return res.json({
           ok: true,
           queued: true,
@@ -315,13 +383,33 @@ function registerRoutes() {
       }
 
       if (!(await enforceRateLimit(redis, avatar, action))) {
-        return res.status(429).json({ error: "rate_limited" });
+        return rejectRequest(
+          req,
+          res,
+          429,
+          "rate_limited",
+          "api.event",
+          body,
+          { action }
+        );
       }
-      await publishApiEvent(action, body);
+      await publishApiEvent(action, body, { route: "/api/event" });
       const state = await loadHudState(avatar);
       return res.json({ ok: true, queued: true, action, state });
     } catch (err) {
-      logger.error({ err }, "event request failed");
+      logApiFailure(
+        legacySessionEvent ? `api.${legacySessionEvent}` : "api.event",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+          action,
+          routed_as: legacySessionEvent || undefined,
+        },
+        "event request failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -358,7 +446,7 @@ function registerRoutes() {
     }
   };
 
-  const queueSessionStart = async (body) => {
+  const queueSessionStart = async (body, meta = {}) => {
     const avatar = sanitizeAvatar(body.avatar);
     const partner = sanitizeAvatar(body.partner || body.partner_avatar);
     if (!avatar || !partner || avatar === partner) {
@@ -379,7 +467,10 @@ function registerRoutes() {
     const canonicalSessionId = payload.session_id || [avatar, partner].sort().join(":");
     payload.session_id = canonicalSessionId;
     payload.started_at = nowMs();
-    await publishEvent(redis, "session_start", payload);
+    await publishEvent(redis, "session_start", payload, {
+      source: "api",
+      ...meta,
+    });
     const [state, partnerState] = await Promise.all([
       safeHudState(avatar),
       safeHudState(partner),
@@ -393,7 +484,7 @@ function registerRoutes() {
     };
   };
 
-  const queueSessionTick = async (body) => {
+  const queueSessionTick = async (body, meta = {}) => {
     const avatar = sanitizeAvatar(body.avatar);
     if (!avatar) {
       const err = new Error("invalid_avatar");
@@ -405,12 +496,12 @@ function registerRoutes() {
       err.status = 429;
       throw err;
     }
-    await publishApiEvent("session_tick", body);
+    await publishApiEvent("session_tick", body, meta);
     const state = await safeHudState(avatar);
     return { state };
   };
 
-  const queueSessionEnd = async (body) => {
+  const queueSessionEnd = async (body, meta = {}) => {
     const avatar = sanitizeAvatar(body.avatar);
     if (!avatar) {
       const err = new Error("invalid_avatar");
@@ -422,7 +513,7 @@ function registerRoutes() {
       err.status = 429;
       throw err;
     }
-    await publishApiEvent("session_end", body);
+    await publishApiEvent("session_end", body, meta);
     const state = await safeHudState(avatar);
     return { state };
   };
@@ -431,7 +522,7 @@ function registerRoutes() {
     const body = req.body || {};
     try {
       await validateApiAuth(req, body, "session_start");
-      const result = await queueSessionStart(body);
+      const result = await queueSessionStart(body, { route: "/api/session/start" });
       return res.json({
         ok: true,
         queued: true,
@@ -441,7 +532,17 @@ function registerRoutes() {
         partner_state: result.partner_state,
       });
     } catch (err) {
-      logger.error({ err }, "session start failed");
+      logApiFailure(
+        "api.session_start",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "session start failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -451,10 +552,20 @@ function registerRoutes() {
     const body = req.body || {};
     try {
       await validateApiAuth(req, body, "session_tick");
-      const result = await queueSessionTick(body);
+      const result = await queueSessionTick(body, { route: "/api/session/tick" });
       return res.json({ ok: true, queued: true, state: result.state });
     } catch (err) {
-      logger.error({ err }, "session tick failed");
+      logApiFailure(
+        "api.session_tick",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "session tick failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -464,10 +575,20 @@ function registerRoutes() {
     const body = req.body || {};
     try {
       await validateApiAuth(req, body, "session_end");
-      const result = await queueSessionEnd(body);
+      const result = await queueSessionEnd(body, { route: "/api/session/end" });
       return res.json({ ok: true, queued: true, state: result.state });
     } catch (err) {
-      logger.error({ err }, "session end failed");
+      logApiFailure(
+        "api.session_end",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "session end failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -581,17 +702,57 @@ function registerRoutes() {
     try {
       await validateApiAuth(req, body, "purchase");
       const avatar = sanitizeAvatar(body.avatar);
-      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
+      if (!avatar) return rejectRequest(req, res, 400, "invalid_avatar", "api.purchase", body);
       const amount = Number(body.amount || 0);
       const type = String(body.type || "l").toLowerCase();
-      if (amount <= 0) return res.status(400).json({ error: "invalid_amount" });
-      if (!(await enforceRateLimit(redis, avatar, "purchase"))) {
-        return res.status(429).json({ error: "rate_limited" });
+      if (amount <= 0) {
+        return rejectRequest(
+          req,
+          res,
+          400,
+          "invalid_amount",
+          "api.purchase",
+          body,
+          { purchase_type: type, amount }
+        );
       }
-      await publishApiEvent("purchase", { avatar, amount, type }, { source: "purchase" });
+      if (!(await enforceRateLimit(redis, avatar, "purchase"))) {
+        return rejectRequest(
+          req,
+          res,
+          429,
+          "rate_limited",
+          "api.purchase",
+          body,
+          { purchase_type: type, amount }
+        );
+      }
+      await publishApiEvent("purchase", { avatar, amount, type }, { route: "/api/purchase" });
+      logApiInfo(
+        "api.purchase",
+        req,
+        body,
+        {
+          outcome: "queued",
+          status: 200,
+          purchase_type: type,
+          amount,
+        },
+        "purchase queued"
+      );
       return res.json({ ok: true, queued: true });
     } catch (err) {
-      logger.error({ err }, "purchase failed");
+      logApiFailure(
+        "api.purchase",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "purchase failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -603,12 +764,25 @@ function registerRoutes() {
       ensureAdminRequest(req);
       const payload = sanitizeArtifactPayload(body);
       if (!payload.artifact_id) {
-        return res.status(400).json({ error: "invalid_artifact_id" });
+        return rejectRequest(req, res, 400, "invalid_artifact_id", "api.admin.artifact_spawn", body);
       }
       const event = await publishEvent(redis, "artifact_spawn", payload, {
-        source: "admin",
-        triggered_by: getAdminTokenFromRequest(req),
+        ...adminEventMeta(req, "/api/admin/artifact/spawn"),
       });
+      logApiInfo(
+        "api.admin.artifact_spawn",
+        req,
+        body,
+        {
+          outcome: "queued",
+          status: 200,
+          artifact_id: payload.artifact_id,
+          artifact_type: payload.type,
+          effect_type: payload.effect_type,
+          event_id: event.id,
+        },
+        "admin artifact spawn queued"
+      );
       return res.json({
         ok: true,
         artifact_id: payload.artifact_id,
@@ -616,7 +790,17 @@ function registerRoutes() {
         expires_at: payload.expires_at,
       });
     } catch (err) {
-      logger.error({ err }, "admin artifact spawn failed");
+      logApiFailure(
+        "api.admin.artifact_spawn",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin artifact spawn failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -632,41 +816,123 @@ function registerRoutes() {
       const limit = Number(req.query.limit || 50);
       await db.expireArtifacts(Math.floor(nowMs() / 1000));
       const artifacts = await db.listArtifacts(limit, active);
+      logApiInfo(
+        "api.admin.artifact_list",
+        req,
+        {},
+        {
+          outcome: "listed",
+          status: 200,
+          artifact_count: artifacts.length,
+          limit,
+          active_filter: activeRaw || "all",
+        },
+        "admin artifact list served"
+      );
       return res.json({ ok: true, artifacts });
     } catch (err) {
-      logger.error({ err }, "admin artifact list failed");
+      logApiFailure(
+        "api.admin.artifact_list",
+        req,
+        {},
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin artifact list failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
   });
 
   app.get("/api/admin/artifact/:artifactId", async (req, res) => {
+    const body = {};
     try {
       ensureAdminRequest(req);
       const artifactId = sanitizeText(req.params?.artifactId || "", "");
-      if (!artifactId) return res.status(400).json({ error: "invalid_artifact_id" });
+      if (!artifactId) {
+        return rejectRequest(req, res, 400, "invalid_artifact_id", "api.admin.artifact_inspect", body);
+      }
       await db.expireArtifacts(Math.floor(nowMs() / 1000));
       const artifact = await db.getArtifact(artifactId);
-      if (!artifact) return res.status(404).json({ error: "artifact_not_found" });
+      if (!artifact) {
+        return rejectRequest(
+          req,
+          res,
+          404,
+          "artifact_not_found",
+          "api.admin.artifact_inspect",
+          body,
+          { artifact_id: artifactId }
+        );
+      }
+      logApiInfo(
+        "api.admin.artifact_inspect",
+        req,
+        body,
+        {
+          outcome: "found",
+          status: 200,
+          artifact_id: artifact.artifact_id,
+          artifact_active: artifact.active,
+        },
+        "admin artifact inspect served"
+      );
       return res.json({ ok: true, artifact });
     } catch (err) {
-      logger.error({ err }, "admin artifact inspect failed");
+      logApiFailure(
+        "api.admin.artifact_inspect",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin artifact inspect failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
   });
 
   app.post("/api/admin/artifact/:artifactId/expire", async (req, res) => {
+    const body = req.body || {};
     try {
       ensureAdminRequest(req);
       const artifactId = sanitizeText(req.params?.artifactId || "", "");
-      if (!artifactId) return res.status(400).json({ error: "invalid_artifact_id" });
+      if (!artifactId) {
+        return rejectRequest(req, res, 400, "invalid_artifact_id", "api.admin.artifact_expire", body);
+      }
       const artifact = await db.getArtifact(artifactId);
-      if (!artifact) return res.status(404).json({ error: "artifact_not_found" });
+      if (!artifact) {
+        return rejectRequest(
+          req,
+          res,
+          404,
+          "artifact_not_found",
+          "api.admin.artifact_expire",
+          body,
+          { artifact_id: artifactId }
+        );
+      }
       const event = await publishEvent(redis, "artifact_expire", { artifact_id: artifactId }, {
-        source: "admin",
-        triggered_by: getAdminTokenFromRequest(req),
+        ...adminEventMeta(req, "/api/admin/artifact/expire"),
       });
+      logApiInfo(
+        "api.admin.artifact_expire",
+        req,
+        body,
+        {
+          outcome: "queued",
+          status: 200,
+          artifact_id: artifactId,
+          event_id: event.id,
+        },
+        "admin artifact expire queued"
+      );
       return res.json({
         ok: true,
         queued: true,
@@ -674,7 +940,17 @@ function registerRoutes() {
         event_id: event.id,
       });
     } catch (err) {
-      logger.error({ err }, "admin artifact expire failed");
+      logApiFailure(
+        "api.admin.artifact_expire",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin artifact expire failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -685,17 +961,31 @@ function registerRoutes() {
     try {
       ensureAdminRequest(req);
       const sessionId = sanitizeText(body.session_id || body.pair_key || "", "");
-      if (!sessionId) return res.status(400).json({ error: "invalid_session_id" });
+      if (!sessionId) {
+        return rejectRequest(req, res, 400, "invalid_session_id", "api.admin.session_fast_forward", body);
+      }
 
       const deltaMsRaw = Number(body.delta_ms ?? body.deltaMs ?? 0);
       const deltaMs = Number.isFinite(deltaMsRaw) ? Math.max(0, Math.min(deltaMsRaw, 7 * 24 * 60 * 60 * 1000)) : 0;
-      if (!deltaMs) return res.status(400).json({ error: "invalid_delta_ms" });
+      if (!deltaMs) {
+        return rejectRequest(req, res, 400, "invalid_delta_ms", "api.admin.session_fast_forward", body);
+      }
 
       const now = nowMs();
       const startedAt = now - deltaMs;
       const sessionKey = `jls:session:${sessionId}`;
       const exists = await redis.exists(sessionKey);
-      if (!exists) return res.status(404).json({ error: "session_not_found" });
+      if (!exists) {
+        return rejectRequest(
+          req,
+          res,
+          404,
+          "session_not_found",
+          "api.admin.session_fast_forward",
+          body,
+          { session_id: sessionId }
+        );
+      }
 
       // This is a debug/admin helper for accelerating manual tests.
       // It does not award anything by itself; it only adjusts timestamps.
@@ -711,9 +1001,32 @@ function registerRoutes() {
         last_reward_at: now - 61_000,
       });
 
+      logApiInfo(
+        "api.admin.session_fast_forward",
+        req,
+        body,
+        {
+          outcome: "updated",
+          status: 200,
+          session_id: sessionId,
+          delta_ms: deltaMs,
+          started_at: startedAt,
+        },
+        "admin session fast-forward applied"
+      );
       return res.json({ ok: true, session_id: sessionId, started_at: startedAt, now });
     } catch (err) {
-      logger.error({ err }, "admin session fast-forward failed");
+      logApiFailure(
+        "api.admin.session_fast_forward",
+        req,
+        body,
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin session fast-forward failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }
@@ -723,16 +1036,36 @@ function registerRoutes() {
     try {
       ensureAdminRequest(req);
       const event = await publishEvent(redis, "admin_cleanup_sessions", {}, {
-        source: "admin",
-        triggered_by: getAdminTokenFromRequest(req),
+        ...adminEventMeta(req, "/api/admin/session/cleanup-stale"),
       });
+      logApiInfo(
+        "api.admin.cleanup_stale_sessions",
+        req,
+        {},
+        {
+          outcome: "queued",
+          status: 200,
+          event_id: event.id,
+        },
+        "admin stale-session cleanup queued"
+      );
       return res.json({
         ok: true,
         queued: true,
         event_id: event.id,
       });
     } catch (err) {
-      logger.error({ err }, "admin cleanup stale sessions failed");
+      logApiFailure(
+        "api.admin.cleanup_stale_sessions",
+        req,
+        {},
+        err,
+        {
+          outcome: "failed",
+          status: err?.status || 500,
+        },
+        "admin cleanup stale sessions failed"
+      );
       if (err.status) return res.status(err.status).json({ error: err.message });
       return res.status(500).json({ error: "server_error" });
     }

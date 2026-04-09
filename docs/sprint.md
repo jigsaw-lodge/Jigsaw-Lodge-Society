@@ -4,8 +4,8 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
+- `TODO` Task 81-82: Move secrets into a proper store and fail fast with beginner-friendly startup errors when required secrets are missing.
 
 ## Next (max 5)
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -59,4 +59,5 @@ This is the single page to look at every day.
 - `DONE` Task 79: beginner-friendly Second Life troubleshooting guide added (`docs/sl-troubleshooting.md`).
 - `DONE` Task 71: checked-in LSL HUD contract audit recorded in `docs/sl-contract-audit-2026-04-09.md`, with an honest scope note for the missing non-HUD object source files.
 - `DONE` Task 72: added the minimal I/O-only reference HUD (`lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`) with shared-token and signed-request modes; it is source-reviewed but not yet compile-tested in-world.
+- `DONE` Task 86: backend and worker now emit structured JSON logs for admin actions, purchases, artifact lifecycle, and session failures via `services/structuredLogging.js`, verified by `30/30` tests plus live container log tails.
 - `DONE` Task 96: launch checklist rewritten so statuses are `Verified (date)` or `Needs Re-Verify`, with fresh April 9 evidence recorded in `docs/launch-100-checklist.md`.

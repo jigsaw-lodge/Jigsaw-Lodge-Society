@@ -5,6 +5,7 @@
 
 require("dotenv").config();
 
+const crypto = require("crypto");
 const pino = require("pino");
 const { createRedisClient, connectWithRetry } = require("../services/redisClient");
 const {
@@ -20,8 +21,12 @@ const {
   deriveOrderMultiplier,
   nextZonePressureState,
 } = require("../services/zonePressure");
+const {
+  buildEventLogContext,
+  serializeError,
+} = require("../services/structuredLogging");
 
-const logger = pino({ level: process.env.LOG_LEVEL || "info" });
+const logger = pino({ level: process.env.LOG_LEVEL || "info" }).child({ component: "worker" });
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
@@ -78,6 +83,37 @@ const sub = redis.duplicate();
 
 redis.on("error", (err) => logger.error({ err }, "redis error"));
 sub.on("error", (err) => logger.error({ err }, "redis subscriber error"));
+
+function logWorkerInfo(eventName, event, extra = {}, message = eventName) {
+  logger.info(
+    {
+      event: eventName,
+      ...buildEventLogContext(event, extra),
+    },
+    message
+  );
+}
+
+function logWorkerWarn(eventName, event, extra = {}, message = eventName) {
+  logger.warn(
+    {
+      event: eventName,
+      ...buildEventLogContext(event, extra),
+    },
+    message
+  );
+}
+
+function logWorkerFailure(eventName, event, err, extra = {}, message = eventName) {
+  logger.error(
+    {
+      event: eventName,
+      ...buildEventLogContext(event, extra),
+      err: serializeError(err),
+    },
+    message
+  );
+}
 
 function nowMs() {
   return Date.now();
@@ -944,7 +980,15 @@ async function handleSessionStart(event) {
   const zone = sanitizeZone(p.zone);
   const startedAt = toInt(p.started_at, nowMs());
 
-  if (!avatarA || !avatarB || avatarA === avatarB) return;
+  if (!avatarA || !avatarB || avatarA === avatarB) {
+    logWorkerWarn(
+      "worker.session_start",
+      event,
+      { outcome: "invalid_payload" },
+      "session start ignored because the payload was invalid"
+    );
+    return;
+  }
 
   const sessionId = pairKey(avatarA, avatarB);
 
@@ -997,10 +1041,29 @@ async function handleSessionStart(event) {
 async function handleSessionTick(event) {
   const p = event.payload || {};
   const avatar = sanitizeAvatar(p.avatar);
-  if (!avatar) return;
+  if (!avatar) {
+    logWorkerWarn(
+      "worker.session_tick",
+      event,
+      { outcome: "invalid_avatar" },
+      "session tick ignored because the avatar was invalid"
+    );
+    return;
+  }
 
   const session = await getSessionByAvatar(avatar);
-  if (!session || !session.active) return;
+  if (!session || !session.active) {
+    logWorkerInfo(
+      "worker.session_tick",
+      event,
+      {
+        outcome: "no_active_session",
+        session_id: session?.session_id,
+      },
+      "session tick ignored because no active session was found"
+    );
+    return;
+  }
 
   const now = nowMs();
   const startedAt = toInt(session.started_at, now);
@@ -1121,11 +1184,38 @@ async function handleSessionTick(event) {
 async function handleSessionEnd(event) {
   const p = event.payload || {};
   const avatar = sanitizeAvatar(p.avatar);
-  if (!avatar) return;
+  if (!avatar) {
+    logWorkerWarn(
+      "worker.session_end",
+      event,
+      { outcome: "invalid_avatar" },
+      "session end ignored because the avatar was invalid"
+    );
+    return;
+  }
 
   const session = await getSessionByAvatar(avatar);
-  if (!session) return;
-  if (!session.active || toInt(session.ended_at, 0) > 0) return;
+  if (!session) {
+    logWorkerInfo(
+      "worker.session_end",
+      event,
+      { outcome: "missing_session" },
+      "session end ignored because no session was found"
+    );
+    return;
+  }
+  if (!session.active || toInt(session.ended_at, 0) > 0) {
+    logWorkerInfo(
+      "worker.session_end",
+      event,
+      {
+        outcome: "already_closed",
+        session_id: session.session_id,
+      },
+      "session end ignored because the session was already closed"
+    );
+    return;
+  }
 
   const now = nowMs();
   const startedAt = toInt(session.started_at, now);
@@ -1171,6 +1261,16 @@ async function handleSessionEnd(event) {
     if (!claimed) {
       // Still clear links, but do not award again.
       await clearAvatarSessionLinks(session);
+      logWorkerInfo(
+        "worker.session_end",
+        event,
+        {
+          outcome: "duplicate_claim",
+          session_id: session.session_id,
+          duration_ms: duration,
+        },
+        "duplicate session end skipped after the ritual reward was already claimed"
+      );
       return;
     }
     ritualComplete = true;
@@ -1446,10 +1546,26 @@ async function handleBattleResolve(event) {
 async function handlePurchase(event) {
   const p = event.payload || {};
   const avatar = sanitizeAvatar(p.avatar);
-  if (!avatar) return;
+  if (!avatar) {
+    logWorkerWarn(
+      "worker.purchase",
+      event,
+      { outcome: "invalid_avatar" },
+      "purchase ignored because the avatar was invalid"
+    );
+    return;
+  }
   const amount = Number(p.amount || 0);
   const type = String(p.type || "l").toLowerCase();
-  if (amount <= 0) return;
+  if (amount <= 0) {
+    logWorkerWarn(
+      "worker.purchase",
+      event,
+      { outcome: "invalid_amount", amount, purchase_type: type },
+      "purchase ignored because the amount was invalid"
+    );
+    return;
+  }
 
   const player = await ensurePlayer(avatar);
   await refreshPlayerLifecycle(player);
@@ -1465,6 +1581,17 @@ async function handlePurchase(event) {
     last_seen: nowMs(),
     last_action_at: nowMs(),
   });
+  logWorkerInfo(
+    "worker.purchase",
+    event,
+    {
+      outcome: "applied",
+      amount,
+      purchase_type: type,
+      pentacles: player.pentacles,
+    },
+    "purchase applied"
+  );
   await emitWorkerEvent("purchase", {
     avatar,
     amount,
@@ -1679,7 +1806,15 @@ async function handleHoneyUse(event) {
 async function handleArtifactSpawn(event) {
   const p = event.payload || {};
   const artifactId = sanitizeText(p.artifact_id || p.id || "", "").trim();
-  if (!artifactId) return;
+  if (!artifactId) {
+    logWorkerWarn(
+      "worker.artifact_spawn",
+      event,
+      { outcome: "invalid_artifact_id" },
+      "artifact spawn ignored because the artifact id was invalid"
+    );
+    return;
+  }
 
   const duration = toInt(p.duration, 48 * 60 * 60);
   const expiresAt = toInt(p.expires_at, 0) || nowSec() + duration;
@@ -1699,6 +1834,18 @@ async function handleArtifactSpawn(event) {
   await db.saveArtifact(artifact);
   artifactCache.updatedAt = 0;
   artifactCache.items = [];
+  logWorkerInfo(
+    "worker.artifact_spawn",
+    event,
+    {
+      outcome: "registered",
+      artifact_id: artifact.artifact_id,
+      artifact_type: artifact.type,
+      zone: artifact.location,
+      expires_at: artifact.expires_at,
+    },
+    "artifact registered"
+  );
   await emitWorkerEvent("artifact_registered", {
     artifact_id: artifact.artifact_id,
     type: artifact.type,
@@ -1711,19 +1858,47 @@ async function handleArtifactSpawn(event) {
 async function handleArtifactExpire(event) {
   const p = event.payload || {};
   const artifactId = sanitizeText(p.artifact_id || p.id || "", "").trim();
-  if (!artifactId) return;
+  if (!artifactId) {
+    logWorkerWarn(
+      "worker.artifact_expire",
+      event,
+      { outcome: "invalid_artifact_id" },
+      "artifact expire ignored because the artifact id was invalid"
+    );
+    return;
+  }
 
   const artifact = await db.expireArtifact(artifactId, nowMs());
   artifactCache.updatedAt = 0;
   artifactCache.items = [];
 
   if (!artifact) {
+    logWorkerWarn(
+      "worker.artifact_expire",
+      event,
+      {
+        outcome: "missing",
+        artifact_id: artifactId,
+      },
+      "artifact expire requested for an artifact that does not exist"
+    );
     await emitWorkerEvent("artifact_expire_missing", {
       artifact_id: artifactId,
     });
     return;
   }
 
+  logWorkerInfo(
+    "worker.artifact_expire",
+    event,
+    {
+      outcome: "expired",
+      artifact_id: artifact.artifact_id,
+      artifact_type: artifact.type,
+      zone: artifact.location,
+    },
+    "artifact expired"
+  );
   await emitWorkerEvent("artifact_expired", {
     artifact_id: artifact.artifact_id,
     type: artifact.type,
@@ -1760,6 +1935,12 @@ async function handleGenericAction(event) {
 
 async function handleAdminCleanupSessions() {
   await cleanupStaleSessions();
+  logWorkerInfo(
+    "worker.admin.cleanup_sessions",
+    { meta: { source: "worker" } },
+    { outcome: "completed" },
+    "admin stale-session cleanup completed"
+  );
   await emitWorkerEvent("admin_cleanup_complete", {
     ran_at: nowMs(),
   });
@@ -1834,7 +2015,13 @@ async function handleEvent(rawMessage) {
         break;
     }
   } catch (err) {
-    logger.error({ err, eventType: event.type, eventId: event.id }, "worker event failed");
+    logWorkerFailure(
+      "worker.event_failure",
+      event,
+      err,
+      {},
+      "worker event failed"
+    );
     await emitWorkerEvent("worker_error", {
       event_id: event.id,
       event_type: event.type,
@@ -1906,6 +2093,25 @@ async function cleanupStaleSessions() {
         avatar_b: avatarB,
         duration,
       });
+      logWorkerWarn(
+        "worker.session_timeout",
+        {
+          id: `timeout:${sessionId}`,
+          type: "session_timeout",
+          payload: {
+            session_id: sessionId,
+            avatar_a: avatarA,
+            avatar_b: avatarB,
+            duration,
+          },
+          meta: { source: "worker" },
+        },
+        {
+          outcome: "timed_out",
+          idle_ms: lastTick > 0 ? now - lastTick : undefined,
+        },
+        "stale session timed out and was cleaned up"
+      );
     }
   } catch (err) {
     logger.error({ err }, "stale session cleanup failed");

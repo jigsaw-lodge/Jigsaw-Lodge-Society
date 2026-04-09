@@ -121,7 +121,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 83. `TODO` Add automated backups for Postgres and Redis with restore verification.
 84. `TODO` Add a one-command restore drill for a staging environment.
 85. `TODO` Create a real incident checklist for backend down, relay down, Redis down, and DB drift.
-86. `TODO` Add structured logs for admin actions, purchases, artifact actions, and session failures.
+86. `DONE` Add structured logs for admin actions, purchases, artifact actions, and session failures.
 87. `TODO` Add alert rules for API failure, relay disconnect spikes, queue issues, and worker errors.
 88. `TODO` Add a weekly release checklist that includes health, smoke, replay, and rollback steps.
 89. `TODO` Create a security review doc for tokens, headers, CORS, rate limits, and audit trails.
@@ -143,15 +143,15 @@ The goal is not to finish everything at once. The goal is to always know the nex
 If you want the smartest immediate sequence, do these next:
 
 1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-2. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
-3. Task 83 - add automated backups for Postgres and Redis with restore verification.
-4. Task 84 - add a one-command restore drill for a staging environment.
-5. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
-6. Task 75 - verify zone modules report presence and zone transitions correctly.
-7. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
-8. Task 63 - make the frontend display current health, latest feed, and battle state reliably.
-9. Task 68 - add a “connection lost / reconnecting” UI state for relay interruptions.
-10. Task 81 - move all real secrets to a proper secret store and document where they live.
+2. Task 83 - add automated backups for Postgres and Redis with restore verification.
+3. Task 84 - add a one-command restore drill for a staging environment.
+4. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+5. Task 81 - move all real secrets to a proper secret store and document where they live.
+6. Task 82 - make startup fail fast with friendly messages when secrets are missing.
+7. Task 75 - verify zone modules report presence and zone transitions correctly.
+8. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
+9. Task 63 - make the frontend display current health, latest feed, and battle state reliably.
+10. Task 68 - add a “connection lost / reconnecting” UI state for relay interruptions.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
@@ -169,6 +169,10 @@ If you want the smartest immediate sequence, do these next:
 ## Readiness rule discovered during the 2026-04-09 SL source audit
 - We can honestly mark the checked-in HUD contract audit complete, but we should not claim the full SL object suite is source-audited until the chair, zone beacon, honey kiosk, order console, and other object scripts are exported into the repo.
 - The new minimal HUD is reference-ready for backend verification, but it still needs a first real compile/run pass in Second Life before we call it SL-verified.
+
+## Readiness rule discovered during structured logging work
+- Audit trails must never store raw secrets. Do not place `ADMIN_TOKEN`, shared SL tokens, or request signatures inside event metadata or logs.
+- Trace logs should carry safe fields like `event`, `outcome`, `route`, `avatar`, `session_id`, `artifact_id`, `request_id`, and `admin_auth_source` so live support can reconstruct what happened without exposing credentials.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

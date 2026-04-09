@@ -16,7 +16,7 @@ Rule:
 - worker heartbeat: `curl -fsS https://api.jigsawlodgesociety.com/api/worker/heartbeat` -> `ok:1`
 - relay health: `curl -fsS https://ws.jigsawlodgesociety.com/health` -> `ok:1`
 - artifact smoke: `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed with artifact `test-artifact-c6a0460b-1775764472035`
-- backend suite: `26/26` passing on the current build
+- backend suite: `30/30` passing on the current build
 
 ## Go / No-Go today
 
@@ -42,14 +42,14 @@ Why:
 | Automation | Deploy through rolling updates with health checks and automatic rollback gates. | Release | Needs Re-Verify | Manual rebuilds and health checks succeeded on 2026-04-09; automatic rollback proof still needs a fresh run. |
 | Automation | Keep Artifact Smoke CI gating every push or PR. | CI | Needs Re-Verify | Workflow exists, but current-commit CI proof is not recorded in today’s archive. |
 | Automation | Script DB backups, Redis backups, schema migrations, and environment provisioning. | Infrastructure | Needs Re-Verify | Backup and migration scripts exist, but restore verification is still an open task. |
-| Telemetry | Centralize backend, worker, and relay logs with structured metadata and 7+ day retention. | Observability | Needs Re-Verify | Logging groundwork exists, but structured log coverage is still incomplete. |
+| Telemetry | Centralize backend, worker, and relay logs with structured metadata and 7+ day retention. | Observability | Needs Re-Verify | Backend and worker structured logs are now live and covered by the `30/30` suite, but central aggregation and 7+ day retention still need fresh verification. |
 | Telemetry | Expose latency, error rate, queue depth, connection count, ping/pong, and artifact throughput in dashboards. | Observability | Needs Re-Verify | Telemetry helpers exist, but the current dashboard proof is not fresh. |
 | Telemetry | Define and wire alert thresholds for queue pressure, latency spikes, rate-limit spikes, and OOM events. | SRE | Needs Re-Verify | Alert guidance exists in docs, but current alert wiring still needs confirmation. |
 | Telemetry | Continuously validate the artifact pipeline with smoke or equivalent relay verification. | QA | Verified (2026-04-09) | `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed on production with artifact `test-artifact-c6a0460b-1775764472035`. |
 | Security | Store secrets in a proper secret system and rotate them regularly. | Security | Needs Re-Verify | Policy/docs exist, but live secret-store verification is still pending. |
 | Security | Enforce backend startup failure without `ADMIN_TOKEN`, and keep unique tokens per environment. | Security | Needs Re-Verify | Code still blocks missing `ADMIN_TOKEN`, but environment-level token hygiene has not been freshly verified. |
-| Security | Enforce rate limiting, CORS, and player request authentication for the current build. | Security | Verified (2026-04-09) | Current suite passed `26/26`, including signed request acceptance, stale rejection, replay blocking, and route auth coverage. |
-| Security | Audit admin actions, worker events, and relay subscriptions for traceability. | Observability | Needs Re-Verify | This remains tied to the structured logging work. |
+| Security | Enforce rate limiting, CORS, and player request authentication for the current build. | Security | Verified (2026-04-09) | Current suite passed `30/30`, including signed request acceptance, stale rejection, replay blocking, route auth coverage, and new logging/traceability checks. |
+| Security | Audit admin actions, worker events, and relay subscriptions for traceability. | Observability | Needs Re-Verify | Admin actions, purchases, artifact lifecycle, and session failures now emit structured backend/worker logs, but relay subscription traceability still needs a fresh launch-day verification. |
 | Runbooks | Keep restart, health, relay replay, and connectivity runbooks written and usable by a new operator. | Ops | Verified (2026-04-09) | `docs/relay-runbook.md`, `docs/local-setup.md`, and `docs/quick-commands.md` are current and align with the present stack. |
 | Runbooks | Provide scripts for log capture, event replay, and rerunning artifact smoke after incidents. | Ops | Verified (2026-04-09) | `scripts/replay-event.js`, `scripts/run-artifact-smoke.js`, and `scripts/smoke.sh` are present and the smoke path passed today. |
 | Program | Obtain current signoff from infrastructure, ops, gameplay, and security owners. | Program | Needs Re-Verify | Signoff must be refreshed after the current launch checklist and SL test sweep. |
@@ -58,6 +58,6 @@ Why:
 ## What must happen next before we can call it ready
 
 1. Record one full SL object -> API -> worker -> relay -> HUD/web pass.
-2. Audit the current LSL scripts and cut the smallest I/O-only HUD path.
-3. Rerun the load, PUB/SUB, restart, and backup/restore proof on the current build.
-4. Deploy `JLS_SIGNING_SECRET`, update the SL objects, and then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
+2. Rerun the load, PUB/SUB, restart, and backup/restore proof on the current build.
+3. Deploy `JLS_SIGNING_SECRET`, update the SL objects, and then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
+4. Re-verify centralized log retention plus relay subscription traceability on the current build.

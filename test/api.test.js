@@ -8,6 +8,7 @@ const { createClient } = require("redis");
 
 const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const EVENT_LIST_KEY = process.env.EVENT_LIST_KEY || "jls:events";
 
 async function getJson(path) {
   const res = await fetch(`${BASE_URL}${path}`);
@@ -210,6 +211,66 @@ test("artifact admin tools list, inspect, and expire artifacts", async () => {
   }, { timeoutMs: 12_000, stepMs: 250 });
 
   assert.equal(expired, true, "artifact never expired cleanly through admin tools");
+});
+
+test("admin artifact events keep audit metadata without storing the raw admin token", async () => {
+  assert.ok(ADMIN_TOKEN, "ADMIN_TOKEN not set in test environment");
+  const redis = createClient({ url: process.env.REDIS_URL || "redis://127.0.0.1:6379" });
+  await redis.connect();
+
+  const artifactId = `admin-audit-${crypto.randomBytes(5).toString("hex")}`;
+  let rawEvent = "";
+  let parsedEvent = null;
+
+  try {
+    const spawn = await postJsonWithHeaders(
+      "/api/admin/artifact/spawn",
+      {
+        artifact_id: artifactId,
+        type: "sigil",
+        effect_type: "xp_boost",
+        power_level: 1,
+        zone: "audit-lane",
+        duration: 120,
+        owner_id: "00000000-0000-4000-8000-00000000cafe",
+      },
+      { "X-Admin-Token": ADMIN_TOKEN }
+    );
+    assert.equal(spawn.res.status, 200, spawn.text);
+    assert.equal(spawn.body?.ok, true);
+
+    const found = await waitFor(async () => {
+      const items = await redis.lRange(EVENT_LIST_KEY, 0, 20);
+      for (const item of items) {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(item);
+        } catch {
+          parsed = null;
+        }
+        if (parsed?.type === "artifact_spawn" && parsed?.payload?.artifact_id === artifactId) {
+          rawEvent = item;
+          parsedEvent = parsed;
+          return true;
+        }
+      }
+      return false;
+    }, { timeoutMs: 12_000, stepMs: 250 });
+
+    assert.equal(found, true, "artifact spawn event never appeared in Redis");
+    assert.equal(parsedEvent?.meta?.source, "admin");
+    assert.equal(parsedEvent?.meta?.route, "/api/admin/artifact/spawn");
+    assert.equal(parsedEvent?.meta?.admin_auth_source, "header");
+    assert.equal(parsedEvent?.meta?.triggered_by, "admin");
+    assert.equal(rawEvent.includes(ADMIN_TOKEN), false, "raw admin token leaked into event metadata");
+  } finally {
+    await postJsonWithHeaders(
+      `/api/admin/artifact/${artifactId}/expire`,
+      {},
+      { "X-Admin-Token": ADMIN_TOKEN }
+    ).catch(() => {});
+    await redis.quit();
+  }
 });
 
 test("naturally expired artifacts disappear from /api/world and stop boosting session tick XP", async () => {
