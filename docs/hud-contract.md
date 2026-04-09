@@ -17,7 +17,10 @@ Request JSON:
   "avatar": "uuid",
   "object": "uuid",
   "action": "hud_tick",
-  "token": "optional-shared-token"
+  "token": "optional-shared-token",
+  "timestamp": 1775763000,
+  "request_id": "req-abc123",
+  "signature": "optional-sha1-signature"
 }
 ```
 
@@ -49,6 +52,8 @@ Notes:
 ## Token rules
 - If `JLS_SHARED_TOKEN` is configured on the backend, HUD must send the matching token.
 - Token can be passed as body `token`.
+- Preferred SL-safe mode: send `timestamp`, `request_id`, and `signature` as described in `docs/sl-request-signing.md`.
+- Signed requests and shared-token requests can coexist during migration.
 
 ## Rate limits
 - The backend rate limits by avatar + action. HUD should throttle requests (2s is fine).
@@ -78,7 +83,10 @@ Request JSON:
   "order": "architect",
   "watchers": 0,
   "group_tag": 0,
-  "token": "optional-shared-token"
+  "token": "optional-shared-token",
+  "timestamp": 1775763000,
+  "request_id": "req-abc123",
+  "signature": "optional-sha1-signature"
 }
 ```
 
@@ -107,7 +115,10 @@ Request JSON:
   "order": "architect",
   "watchers": 0,
   "group_tag": 0,
-  "token": "optional-shared-token"
+  "token": "optional-shared-token",
+  "timestamp": 1775763000,
+  "request_id": "req-abc124",
+  "signature": "optional-sha1-signature"
 }
 ```
 
@@ -134,7 +145,10 @@ Request JSON:
 ```json
 {
   "avatar": "uuid",
-  "token": "optional-shared-token"
+  "token": "optional-shared-token",
+  "timestamp": 1775763000,
+  "request_id": "req-abc125",
+  "signature": "optional-sha1-signature"
 }
 ```
 
@@ -146,3 +160,8 @@ Response JSON:
   "state": { "level": 0, "rituals": 0, "bonds": 0, "watchers": 0, "pentacles": 0, "ritual_progress": 0, "honey": "", "honey_expire": 0, "surge_ready": 0 }
 }
 ```
+
+Legacy furniture compatibility:
+- `/api/event` with `action: "sit"` now routes to `session_start`.
+- `/api/event` with `action: "unsit"` or `action: "stand"` now routes to `session_end`.
+- `/api/event` with `action: "session_tick"` or `action: "ritual_tick"` now routes to `session_tick`.

@@ -38,6 +38,11 @@ services:
         condition: service_started
     environment:
       ADMIN_TOKEN: ${ADMIN_TOKEN}
+      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
+      JLS_SIGNING_SECRET: ${JLS_SIGNING_SECRET}
+      JLS_SIGNING_MAX_SKEW_SEC: ${JLS_SIGNING_MAX_SKEW_SEC:-120}
+      JLS_SIGNING_NONCE_TTL_SEC: ${JLS_SIGNING_NONCE_TTL_SEC:-300}
+      JLS_REQUIRE_SIGNED_REQUESTS: ${JLS_REQUIRE_SIGNED_REQUESTS:-0}
       REDIS_URL: redis://redis:6379
       DB_HOST: db
       DB_USER: postgres

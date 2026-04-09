@@ -14,6 +14,7 @@ Optional: run the daily gating loop in one command:
 - `env ADMIN_TOKEN=... bash scripts/hasan-daily-run.sh`
 - When delegating a cheap worker pass, create a compact brief:
   - `bash scripts/hasan-worker-pack.sh "Task summary" relevant/file.js`
+  - `bash scripts/hasan-worker-pack.sh --mode nano "Utility task summary" docs/sprint.md`
 
 2. Assign each "Now" item to a pod:
    - Platform, Gameplay, Client, SL, QA, Ops, Docs
@@ -38,6 +39,7 @@ Optional: run the daily gating loop in one command:
 
 - Stronger model: Hasan planning, architecture calls, acceptance criteria, and final judgment.
 - Mini model: pod-level edits, narrow investigations, doc cleanup, and first-pass implementations.
+- Nano model: tiny utility tasks like diff triage, checklist extraction, log summarization, and board compaction.
 - Escalate to Hasan before changing schema, secrets, deploy shape, security boundaries, or spec interpretation.
 
 ## What To Do When Stuck

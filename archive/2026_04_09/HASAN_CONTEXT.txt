@@ -1,26 +1,27 @@
 Hasan Context Pack
-UTC: 2026-04-09T19:38:02Z
+UTC: 2026-04-09T19:50:04Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 6]
-Latest commit: 59eeaaa Harden session truth and install Hasan context pack
-Working tree: 12 changed path(s)
+Branch: ## main...origin/main [ahead 7]
+Latest commit: 06ba2fb Verify relay envelopes and add Hasan worker packs
+Working tree: 18 changed path(s)
 
 Model mix:
   - Hasan coordinator: stronger model for planning, risk calls, and final decisions
-  - Worker pods: mini model using scripts/hasan-worker-pack.sh for compact handoffs
+  - Worker pods: GPT-5.4 mini style handoffs via scripts/hasan-worker-pack.sh
+  - Utility micro-tasks: GPT-5.4 nano style handoffs via scripts/hasan-worker-pack.sh --mode nano
   - Escalate back to Hasan on schema, security, deploy, or spec conflicts
 
 Now:
-  - `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
   - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
   - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
+  - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 
 Next:
-  - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
   - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
   - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
   - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
   - `TODO` Add a small “release note” habit: record evidence for each sprint.
+  - `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
 
 Blocked:
   - (none)
@@ -36,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - 06ba2fb Verify relay envelopes and add Hasan worker packs
   - 59eeaaa Harden session truth and install Hasan context pack
   - 8ac19db Finish artifact lifecycle verification and clean test state
-  - bfed0c3 Ship observer-mode website and prove session persistence
 
 Key files:
   - docs/sprint.md

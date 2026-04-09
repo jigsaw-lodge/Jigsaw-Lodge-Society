@@ -21,6 +21,7 @@ We keep agent outputs short and opinionated. No walls of text.
 Default model split:
 - Hasan coordinator on the stronger model.
 - Worker pods on the mini model with `scripts/hasan-worker-pack.sh`.
+- Utility micro-workers on the nano model with `scripts/hasan-worker-pack.sh --mode nano`.
 - Anything risky or ambiguous escalates back to Hasan before it is treated as done.
 
 ## Recommended Roles

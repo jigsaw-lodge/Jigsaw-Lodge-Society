@@ -16,7 +16,7 @@ const {
   safeJsonParse,
 } = require("./services/eventDispatcher");
 const { buildBattleBar } = require("./services/battleBar");
-const { getRequestToken, tokenAllowed, enforceRateLimit } = require("./services/auth");
+const { validateRequestAuth, enforceRateLimit } = require("./services/auth");
 const {
   sanitizeAvatar,
   sanitizeZone,
@@ -87,7 +87,10 @@ function attachCors(app) {
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-JLS-Token");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-JLS-Token, X-JLS-Signature, X-JLS-Timestamp, X-JLS-Request-Id"
+    );
     res.setHeader("Cache-Control", "no-store");
     if (req.method === "OPTIONS") {
       return res.status(204).end();
@@ -96,13 +99,8 @@ function attachCors(app) {
   });
 }
 
-function validateApiToken(req, body) {
-  const token = getRequestToken(req, body);
-  if (!tokenAllowed(token)) {
-    const err = new Error("unauthorized");
-    err.status = 401;
-    throw err;
-  }
+async function validateApiAuth(req, body, routeAction = "") {
+  return validateRequestAuth(redis, req, body, routeAction);
 }
 
 function sanitizeOrderValue(value) {
@@ -131,6 +129,8 @@ function safeEventPayload(body) {
     x: Number.isFinite(Number(body.x)) ? Number(body.x) : 0,
     y: Number.isFinite(Number(body.y)) ? Number(body.y) : 0,
     z: Number.isFinite(Number(body.z)) ? Number(body.z) : 0,
+    request_id: sanitizeText(body.request_id || body.nonce || "", ""),
+    request_ts: Number.isFinite(Number(body.timestamp || body.ts)) ? Number(body.timestamp || body.ts) : 0,
     ts: Math.floor(nowMs() / 1000),
   };
 }
@@ -274,17 +274,50 @@ function registerRoutes() {
   app.post("/api/event", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
       const avatar = sanitizeAvatar(body.avatar);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       const action = sanitizeAction(body.action || body.type || "event");
       if (!action) return res.status(400).json({ error: "invalid_action" });
+      await validateApiAuth(req, body, action);
+      const legacySessionEvent = legacySessionEventType(action);
+      if (legacySessionEvent === "session_start") {
+        const result = await queueSessionStart(body);
+        return res.json({
+          ok: true,
+          queued: true,
+          action,
+          routed_as: legacySessionEvent,
+          session_id: result.session_id,
+          started_at: result.started_at,
+          state: result.state,
+          partner_state: result.partner_state,
+        });
+      }
+      if (legacySessionEvent === "session_tick") {
+        const result = await queueSessionTick(body);
+        return res.json({
+          ok: true,
+          queued: true,
+          action,
+          routed_as: legacySessionEvent,
+          state: result.state,
+        });
+      }
+      if (legacySessionEvent === "session_end") {
+        const result = await queueSessionEnd(body);
+        return res.json({
+          ok: true,
+          queued: true,
+          action,
+          routed_as: legacySessionEvent,
+          state: result.state,
+        });
+      }
+
       if (!(await enforceRateLimit(redis, avatar, action))) {
         return res.status(429).json({ error: "rate_limited" });
       }
       await publishApiEvent(action, body);
-      // Back-compat for SL HUD: return a {state:{...}} object immediately.
-      // This reflects the latest Redis snapshot, not necessarily the post-event result.
       const state = await loadHudState(avatar);
       return res.json({ ok: true, queued: true, action, state });
     } catch (err) {
@@ -301,42 +334,111 @@ function registerRoutes() {
     zone: sanitizeZone(body.zone),
     order: sanitizeOrderValue(body.order),
     session_id: sanitizeText(body.session_id || "", ""),
+    request_id: sanitizeText(body.request_id || body.nonce || "", ""),
+    request_ts: Number.isFinite(Number(body.timestamp || body.ts)) ? Number(body.timestamp || body.ts) : 0,
     watchers: Number.isFinite(Number(body.watchers)) ? Number(body.watchers) : 0,
     group_tag: Number.isFinite(Number(body.group_tag)) ? Number(body.group_tag) : 0,
     ts: Math.floor(nowMs() / 1000),
   });
 
+  const legacySessionEventType = (action) => {
+    switch (action) {
+      case "sit":
+      case "session_start":
+        return "session_start";
+      case "ritual_tick":
+      case "session_tick":
+        return "session_tick";
+      case "stand":
+      case "unsit":
+      case "session_end":
+        return "session_end";
+      default:
+        return "";
+    }
+  };
+
+  const queueSessionStart = async (body) => {
+    const avatar = sanitizeAvatar(body.avatar);
+    const partner = sanitizeAvatar(body.partner || body.partner_avatar);
+    if (!avatar || !partner || avatar === partner) {
+      const err = new Error("invalid_session");
+      err.status = 400;
+      throw err;
+    }
+    if (!(await enforceRateLimit(redis, avatar, "session_start"))) {
+      const err = new Error("rate_limited");
+      err.status = 429;
+      throw err;
+    }
+
+    const payload = {
+      ...sessionPayload(body),
+      type_specific: "start",
+    };
+    const canonicalSessionId = payload.session_id || [avatar, partner].sort().join(":");
+    payload.session_id = canonicalSessionId;
+    payload.started_at = nowMs();
+    await publishEvent(redis, "session_start", payload);
+    const [state, partnerState] = await Promise.all([
+      safeHudState(avatar),
+      safeHudState(partner),
+    ]);
+
+    return {
+      session_id: canonicalSessionId,
+      started_at: payload.started_at,
+      state,
+      partner_state: partnerState,
+    };
+  };
+
+  const queueSessionTick = async (body) => {
+    const avatar = sanitizeAvatar(body.avatar);
+    if (!avatar) {
+      const err = new Error("invalid_avatar");
+      err.status = 400;
+      throw err;
+    }
+    if (!(await enforceRateLimit(redis, avatar, "session_tick"))) {
+      const err = new Error("rate_limited");
+      err.status = 429;
+      throw err;
+    }
+    await publishApiEvent("session_tick", body);
+    const state = await safeHudState(avatar);
+    return { state };
+  };
+
+  const queueSessionEnd = async (body) => {
+    const avatar = sanitizeAvatar(body.avatar);
+    if (!avatar) {
+      const err = new Error("invalid_avatar");
+      err.status = 400;
+      throw err;
+    }
+    if (!(await enforceRateLimit(redis, avatar, "session_end"))) {
+      const err = new Error("rate_limited");
+      err.status = 429;
+      throw err;
+    }
+    await publishApiEvent("session_end", body);
+    const state = await safeHudState(avatar);
+    return { state };
+  };
+
   app.post("/api/session/start", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
-      const avatar = sanitizeAvatar(body.avatar);
-      const partner = sanitizeAvatar(body.partner || body.partner_avatar);
-      if (!avatar || !partner || avatar === partner) {
-        return res.status(400).json({ error: "invalid_session" });
-      }
-      if (!(await enforceRateLimit(redis, avatar, "session_start"))) {
-        return res.status(429).json({ error: "rate_limited" });
-      }
-      const payload = {
-        ...sessionPayload(body),
-        type_specific: "start",
-      };
-      const canonicalSessionId = payload.session_id || [avatar, partner].sort().join(":");
-      payload.session_id = canonicalSessionId;
-      payload.started_at = nowMs();
-      await publishEvent(redis, "session_start", payload);
-      const [state, partnerState] = await Promise.all([
-        safeHudState(avatar),
-        safeHudState(partner),
-      ]);
+      await validateApiAuth(req, body, "session_start");
+      const result = await queueSessionStart(body);
       return res.json({
         ok: true,
         queued: true,
-        session_id: canonicalSessionId,
-        started_at: payload.started_at,
-        state,
-        partner_state: partnerState,
+        session_id: result.session_id,
+        started_at: result.started_at,
+        state: result.state,
+        partner_state: result.partner_state,
       });
     } catch (err) {
       logger.error({ err }, "session start failed");
@@ -348,15 +450,9 @@ function registerRoutes() {
   app.post("/api/session/tick", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
-      const avatar = sanitizeAvatar(body.avatar);
-      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
-      if (!(await enforceRateLimit(redis, avatar, "session_tick"))) {
-        return res.status(429).json({ error: "rate_limited" });
-      }
-      await publishApiEvent("session_tick", body);
-      const state = await safeHudState(avatar);
-      return res.json({ ok: true, queued: true, state });
+      await validateApiAuth(req, body, "session_tick");
+      const result = await queueSessionTick(body);
+      return res.json({ ok: true, queued: true, state: result.state });
     } catch (err) {
       logger.error({ err }, "session tick failed");
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -367,15 +463,9 @@ function registerRoutes() {
   app.post("/api/session/end", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
-      const avatar = sanitizeAvatar(body.avatar);
-      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
-      if (!(await enforceRateLimit(redis, avatar, "session_end"))) {
-        return res.status(429).json({ error: "rate_limited" });
-      }
-      await publishApiEvent("session_end", body);
-      const state = await safeHudState(avatar);
-      return res.json({ ok: true, queued: true, state });
+      await validateApiAuth(req, body, "session_end");
+      const result = await queueSessionEnd(body);
+      return res.json({ ok: true, queued: true, state: result.state });
     } catch (err) {
       logger.error({ err }, "session end failed");
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -386,7 +476,7 @@ function registerRoutes() {
   app.post("/api/drip", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "drip_request");
       const avatar = sanitizeAvatar(body.avatar);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       if (!(await enforceRateLimit(redis, avatar, "drip"))) {
@@ -404,7 +494,7 @@ function registerRoutes() {
   app.post("/api/honey/use", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "honey_used");
       const avatar = sanitizeAvatar(body.avatar);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       if (!(await enforceRateLimit(redis, avatar, "honey_use"))) {
@@ -446,7 +536,7 @@ function registerRoutes() {
   app.post("/api/challenges/claim", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "challenge_claim");
       const avatar = sanitizeAvatar(body.avatar);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       const tier = String(body.tier || "").toLowerCase();
@@ -468,7 +558,7 @@ function registerRoutes() {
   app.post("/api/battle/resolve", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "battle_resolve");
       const winner = sanitizeAvatar(body.winner);
       const loser = sanitizeAvatar(body.loser);
       if (!winner || !loser || winner === loser) {
@@ -489,7 +579,7 @@ function registerRoutes() {
   app.post("/api/purchase", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "purchase");
       const avatar = sanitizeAvatar(body.avatar);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       const amount = Number(body.amount || 0);
@@ -651,7 +741,7 @@ function registerRoutes() {
   app.post("/api/sync", async (req, res) => {
     const body = req.body || {};
     try {
-      validateApiToken(req, body);
+      await validateApiAuth(req, body, "sync");
       const avatar = sanitizeAvatar(body.avatar || body.id);
       if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
       if (!(await enforceRateLimit(redis, avatar, "sync"))) {

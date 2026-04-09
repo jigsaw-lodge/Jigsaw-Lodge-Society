@@ -63,6 +63,11 @@ Generate a mini-worker brief for one delegated task:
 bash scripts/hasan-worker-pack.sh "Task 61-62: Verify relay feed envelopes" wsrelay.js test/relay.test.js docs/sprint.md
 ```
 
+Generate a nano-worker brief for a tiny utility task:
+```sh
+bash scripts/hasan-worker-pack.sh --mode nano "Summarize today's blockers" docs/sprint.md docs/risks.md
+```
+
 Dev mode (hot reload, avoid rebuild loops):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/dev-up.sh

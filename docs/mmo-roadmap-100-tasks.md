@@ -106,8 +106,8 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Phase 8 - Second Life Integration
 71. `TODO` Audit the current LSL scripts against the locked API contract.
 72. `TODO` Make one minimal HUD script that only handles input/output and trusts backend authority.
-73. `TODO` Add request signing or token handling that is safe for in-world objects.
-74. `TODO` Verify furniture objects can start and maintain sessions correctly.
+73. `DONE` Add request signing or token handling that is safe for in-world objects.
+74. `DONE` Verify furniture objects can start and maintain sessions correctly.
 75. `TODO` Verify zone modules report presence and zone transitions correctly.
 76. `TODO` Verify artifact-triggering objects send the right payloads and cannot spoof rewards.
 77. `TODO` Add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
@@ -142,16 +142,16 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Best next 10 tasks
 If you want the smartest immediate sequence, do these next:
 
-1. Task 73 - add request signing or token handling that is safe for in-world objects.
-2. Task 74 - verify furniture objects can start and maintain sessions correctly.
-3. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
-4. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
-5. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
-6. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-7. Task 96 - rewrite the launch checklist to reflect current truth only.
-8. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
-9. Task 83 - add automated backups for Postgres and Redis with restore verification.
-10. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+1. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
+2. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
+3. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
+4. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+5. Task 96 - rewrite the launch checklist to reflect current truth only.
+6. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
+7. Task 83 - add automated backups for Postgres and Redis with restore verification.
+8. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+9. Task 71 - audit the current LSL scripts against the locked API contract.
+10. Task 72 - make one minimal HUD script that only handles input/output and trusts backend authority.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
@@ -160,6 +160,10 @@ If you want the smartest immediate sequence, do these next:
 ## Readiness rule discovered during route verification
 - Do not let generic API event sanitizing strip route-specific worker fields.
 - `battle_resolve`, `purchase`, `honey_used`, `challenge_claim`, and sync/session payloads need their typed fields preserved or the worker quietly loses authority inputs.
+
+## Readiness rule discovered during Second Life signing work
+- Signed SL requests should carry `timestamp`, `request_id`, and `signature`, and the backend should reject stale or replayed requests before they hit gameplay logic.
+- Legacy furniture can still use `/api/event` with `sit`, `ritual_tick`, `stand`, or `unsit`, but the target architecture is signed requests against the session endpoints.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

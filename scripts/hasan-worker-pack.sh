@@ -4,13 +4,24 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SPRINT="$ROOT_DIR/docs/sprint.md"
 ROADMAP="$ROOT_DIR/docs/mmo-roadmap-100-tasks.md"
+MODE="mini"
+
+if [[ "${1:-}" == "--mode" ]]; then
+  MODE="${2:-mini}"
+  shift 2 || true
+fi
 
 TASK="${1:-}"
 if [[ -z "$TASK" ]]; then
-  echo "Usage: bash scripts/hasan-worker-pack.sh \"Task summary\" [relevant_file ...]"
+  echo "Usage: bash scripts/hasan-worker-pack.sh [--mode mini|nano] \"Task summary\" [relevant_file ...]"
   exit 2
 fi
 shift || true
+
+if [[ "$MODE" != "mini" && "$MODE" != "nano" ]]; then
+  echo "Mode must be mini or nano."
+  exit 2
+fi
 
 render_section() {
   local heading="$1"
@@ -49,7 +60,7 @@ render_task_hit() {
 }
 
 echo "Hasan Worker Pack"
-echo "Mode: mini-worker"
+echo "Mode: ${MODE}-worker"
 echo "UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Repo: $ROOT_DIR"
 echo "Branch: $(git -C "$ROOT_DIR" status --short --branch | head -n 1)"
@@ -60,14 +71,25 @@ echo "  - $TASK"
 echo
 echo "Why this exists:"
 echo "  - Hasan keeps planning and final judgment on the stronger model."
-echo "  - Mini workers get only the task slice, current board, and key files to save tokens."
+if [[ "$MODE" == "nano" ]]; then
+  echo "  - Nano workers get only the tiniest utility slice to save maximum tokens."
+else
+  echo "  - Mini workers get only the task slice, current board, and key files to save tokens."
+fi
 echo
 echo "Worker rules:"
-echo "  - Solve only this slice."
-echo "  - Keep server authority intact; do not push logic into LSL or the website if backend truth should own it."
-echo "  - Keep patches small and avoid unrelated files."
-echo "  - End with one concrete verification command or test."
-echo "  - Escalate back to Hasan for schema changes, deploy risk, security decisions, or conflicting specs."
+if [[ "$MODE" == "nano" ]]; then
+  echo "  - Do only utility work: classify, summarize, extract, route, or compact."
+  echo "  - Do not make architecture calls or broad code edits."
+  echo "  - Escalate back to Hasan or a mini worker for schema, security, deploy, or spec decisions."
+  echo "  - End with one concise result Hasan can act on immediately."
+else
+  echo "  - Solve only this slice."
+  echo "  - Keep server authority intact; do not push logic into LSL or the website if backend truth should own it."
+  echo "  - Keep patches small and avoid unrelated files."
+  echo "  - End with one concrete verification command or test."
+  echo "  - Escalate back to Hasan for schema changes, deploy risk, security decisions, or conflicting specs."
+fi
 echo
 echo "Matching board items:"
 render_task_hit

@@ -7,6 +7,9 @@ Goal: prove SL -> HTTP -> Node -> Redis -> Worker -> WebSocket -> HUD/Web is fun
   - `env ADMIN_TOKEN=... bash scripts/hasan-daily-run.sh`
 - You have the HUD script ready in SL:
   - `lslexternals-2026-04-08/jls_hud_v68.ll`
+- If signing is enabled:
+  - your object sends `timestamp`, `request_id`, and `signature`
+  - you have `docs/sl-request-signing.md` open while testing
 
 ## 1. HUD boots and syncs
 1. Attach HUD in SL.
@@ -30,6 +33,7 @@ Pass when:
 
 Pass when:
 - No double-awards.
+- If using legacy furniture, `sit` and `unsit` still route into the authoritative session engine.
 - Session end is reflected in recent events (`/api/world`).
 
 ## 4. Honey and drip rules
