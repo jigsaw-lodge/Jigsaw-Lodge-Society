@@ -149,6 +149,15 @@ async function loadHudState(avatar) {
   };
 }
 
+async function safeHudState(avatar) {
+  try {
+    if (!avatar) return null;
+    return await loadHudState(avatar);
+  } catch {
+    return null;
+  }
+}
+
 function getAdminTokenFromRequest(req) {
   const headerToken = String(req.headers["x-admin-token"] || "").trim();
   if (headerToken) return headerToken;
@@ -300,7 +309,18 @@ function registerRoutes() {
       payload.session_id = canonicalSessionId;
       payload.started_at = nowMs();
       await publishEvent(redis, "session_start", payload);
-      return res.json({ ok: true, session_id: canonicalSessionId, started_at: payload.started_at });
+      const [state, partnerState] = await Promise.all([
+        safeHudState(avatar),
+        safeHudState(partner),
+      ]);
+      return res.json({
+        ok: true,
+        queued: true,
+        session_id: canonicalSessionId,
+        started_at: payload.started_at,
+        state,
+        partner_state: partnerState,
+      });
     } catch (err) {
       logger.error({ err }, "session start failed");
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -318,7 +338,8 @@ function registerRoutes() {
         return res.status(429).json({ error: "rate_limited" });
       }
       await publishApiEvent("session_tick", body);
-      return res.json({ ok: true, queued: true });
+      const state = await safeHudState(avatar);
+      return res.json({ ok: true, queued: true, state });
     } catch (err) {
       logger.error({ err }, "session tick failed");
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -336,7 +357,8 @@ function registerRoutes() {
         return res.status(429).json({ error: "rate_limited" });
       }
       await publishApiEvent("session_end", body);
-      return res.json({ ok: true, queued: true });
+      const state = await safeHudState(avatar);
+      return res.json({ ok: true, queued: true, state });
     } catch (err) {
       logger.error({ err }, "session end failed");
       if (err.status) return res.status(err.status).json({ error: err.message });

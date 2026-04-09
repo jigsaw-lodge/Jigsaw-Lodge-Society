@@ -65,4 +65,31 @@ test("POST /api/session/start queues and returns session_id", async () => {
   assert.equal(res.status, 200, text);
   assert.equal(body?.ok, true);
   assert.ok(body?.session_id);
+  assert.equal(body?.queued, true);
+  assert.ok(body?.state, "expected state snapshot");
+  assert.ok(body?.partner_state, "expected partner_state snapshot");
+});
+
+test("POST /api/session/tick returns state snapshot", async () => {
+  const a = "00000000-0000-4000-8000-0000000000b1";
+  const b = "00000000-0000-4000-8000-0000000000b2";
+  await postJson("/api/session/start", { avatar: a, partner: b, zone: "0:0" });
+  await new Promise((r) => setTimeout(r, 900));
+  const { res, body, text } = await postJson("/api/session/tick", { avatar: a, zone: "0:0" });
+  assert.equal(res.status, 200, text);
+  assert.equal(body?.ok, true);
+  assert.equal(body?.queued, true);
+  assert.ok(body?.state, "expected state snapshot");
+});
+
+test("POST /api/session/end returns state snapshot", async () => {
+  const a = "00000000-0000-4000-8000-0000000000c1";
+  const b = "00000000-0000-4000-8000-0000000000c2";
+  await postJson("/api/session/start", { avatar: a, partner: b, zone: "0:0" });
+  await new Promise((r) => setTimeout(r, 900));
+  const { res, body, text } = await postJson("/api/session/end", { avatar: a });
+  assert.equal(res.status, 200, text);
+  assert.equal(body?.ok, true);
+  assert.equal(body?.queued, true);
+  assert.ok(body?.state, "expected state snapshot");
 });
