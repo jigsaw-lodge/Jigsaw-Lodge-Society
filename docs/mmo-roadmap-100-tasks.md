@@ -104,8 +104,8 @@ The goal is not to finish everything at once. The goal is to always know the nex
 70. `TODO` Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
 
 ## Phase 8 - Second Life Integration
-71. `TODO` Audit the current LSL scripts against the locked API contract.
-72. `TODO` Make one minimal HUD script that only handles input/output and trusts backend authority.
+71. `DONE` Audit the current LSL scripts against the locked API contract.
+72. `DONE` Make one minimal HUD script that only handles input/output and trusts backend authority.
 73. `DONE` Add request signing or token handling that is safe for in-world objects.
 74. `DONE` Verify furniture objects can start and maintain sessions correctly.
 75. `TODO` Verify zone modules report presence and zone transitions correctly.
@@ -143,15 +143,15 @@ The goal is not to finish everything at once. The goal is to always know the nex
 If you want the smartest immediate sequence, do these next:
 
 1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-2. Task 71 - audit the current LSL scripts against the locked API contract.
-3. Task 72 - make one minimal HUD script that only handles input/output and trusts backend authority.
-4. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
-5. Task 83 - add automated backups for Postgres and Redis with restore verification.
-6. Task 84 - add a one-command restore drill for a staging environment.
-7. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+2. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
+3. Task 83 - add automated backups for Postgres and Redis with restore verification.
+4. Task 84 - add a one-command restore drill for a staging environment.
+5. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+6. Task 75 - verify zone modules report presence and zone transitions correctly.
+7. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
 8. Task 63 - make the frontend display current health, latest feed, and battle state reliably.
 9. Task 68 - add a “connection lost / reconnecting” UI state for relay interruptions.
-10. Task 75 - verify zone modules report presence and zone transitions correctly.
+10. Task 81 - move all real secrets to a proper secret store and document where they live.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
@@ -165,6 +165,10 @@ If you want the smartest immediate sequence, do these next:
 - Signed SL requests should carry `timestamp`, `request_id`, and `signature`, and the backend should reject stale or replayed requests before they hit gameplay logic.
 - Legacy furniture can still use `/api/event` with `sit`, `ritual_tick`, `stand`, or `unsit`, but the target architecture is signed requests against the session endpoints.
 - Production activation is a deployment step: set `JLS_SIGNING_SECRET`, update the SL objects, then turn on `JLS_REQUIRE_SIGNED_REQUESTS=1`.
+
+## Readiness rule discovered during the 2026-04-09 SL source audit
+- We can honestly mark the checked-in HUD contract audit complete, but we should not claim the full SL object suite is source-audited until the chair, zone beacon, honey kiosk, order console, and other object scripts are exported into the repo.
+- The new minimal HUD is reference-ready for backend verification, but it still needs a first real compile/run pass in Second Life before we call it SL-verified.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

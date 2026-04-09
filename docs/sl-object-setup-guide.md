@@ -100,8 +100,11 @@ Important:
 
 ## 6. HUD setup
 
-The current HUD file in the repo is:
+The themed HUD file in the repo is:
 - `lslexternals-2026-04-08/jls_hud_v68.ll`
+
+The minimal testing HUD file is:
+- `lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`
 
 Check these values first:
 - `API_MAIN`
@@ -109,9 +112,15 @@ Check these values first:
 - request interval
 - whether the script is still using token-only mode or has been updated for signing
 
+Recommendation:
+- use `jls_hud_minimal_io_v1.ll` for the first honest backend test
+- move back to `jls_hud_v68.ll` after the golden path is stable
+- treat the minimal HUD as source-reviewed reference code until it has its first real compile/run pass in Second Life
+
 Expected first behavior:
 - attach HUD
-- see `JLS HUD boot complete.`
+- if using `jls_hud_v68.ll`, see `JLS HUD boot complete.`
+- if using `jls_hud_minimal_io_v1.ll`, see `JLS minimal HUD ready.`
 - after polling, HUD should start showing real values instead of staying at zero forever
 
 ## 7. Chair / furniture setup

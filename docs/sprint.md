@@ -4,18 +4,18 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 71-72: Audit the current LSL scripts against the locked contract and cut one minimal I/O-only HUD script.
 - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
+- `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
 
 ## Next (max 5)
-- `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
+- `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
 - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Add a small “release note” habit: record evidence for each sprint.
 - `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
 
 ## Blocked
-- (none)
+- `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
 
 ## Done Today
 - `DONE` Task 7: beginner local setup guide (`docs/local-setup.md`).
@@ -57,4 +57,6 @@ This is the single page to look at every day.
 - `DONE` Task 77: the SL sandbox checklist is now tightened and linked from setup docs (`docs/sl-qa-checklist.md`).
 - `DONE` Task 78: beginner-friendly object placement and endpoint wiring guide added (`docs/sl-object-setup-guide.md`).
 - `DONE` Task 79: beginner-friendly Second Life troubleshooting guide added (`docs/sl-troubleshooting.md`).
+- `DONE` Task 71: checked-in LSL HUD contract audit recorded in `docs/sl-contract-audit-2026-04-09.md`, with an honest scope note for the missing non-HUD object source files.
+- `DONE` Task 72: added the minimal I/O-only reference HUD (`lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`) with shared-token and signed-request modes; it is source-reviewed but not yet compile-tested in-world.
 - `DONE` Task 96: launch checklist rewritten so statuses are `Verified (date)` or `Needs Re-Verify`, with fresh April 9 evidence recorded in `docs/launch-100-checklist.md`.

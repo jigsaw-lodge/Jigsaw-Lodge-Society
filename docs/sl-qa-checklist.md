@@ -7,6 +7,7 @@ Goal: prove SL -> HTTP -> Node -> Redis -> Worker -> WebSocket -> HUD/Web is fun
   - `env ADMIN_TOKEN=... bash scripts/hasan-daily-run.sh`
 - You have the HUD script ready in SL:
   - `lslexternals-2026-04-08/jls_hud_v68.ll`
+  - or `lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`
 - You have the object setup guide open:
   - `docs/sl-object-setup-guide.md`
 - If signing is enabled:
@@ -16,9 +17,13 @@ Goal: prove SL -> HTTP -> Node -> Redis -> Worker -> WebSocket -> HUD/Web is fun
 ## 1. HUD boots and syncs
 1. Attach HUD in SL.
 2. Confirm you see:
-   - "JLS HUD boot complete."
+   - `"JLS HUD boot complete."` when using `jls_hud_v68.ll`
+   - or `"JLS minimal HUD ready."` when using `jls_hud_minimal_io_v1.ll`
 3. Confirm it starts showing non-zero values after a minute of play:
    - Lvl, rituals, bonds, watchers, pentacles.
+
+Note:
+- the minimal HUD is the cleanest backend verification script, but it still needs its first real compile/run proof in-world
 
 Pass when:
 - HUD continues to render without errors.

@@ -7,6 +7,7 @@ Bundle of client-side scripts/assets that Second Life uses to exercise the backe
 | Item | File/Script | Purpose |
 | --- | --- | --- |
 | HUD | `JLS HUD v68` (wearable) | Sends `hud_tick` data, displays XP/ritual/bond state, applies presence animations, and drives weighted boot timing. |
+| HUD (minimal) | `jls_hud_minimal_io_v1.ll` | Smallest reference HUD for backend verification; polls `/api/event`, renders returned state, can switch from shared-token mode to signed mode, and is source-reviewed pending first in-world compile proof. |
 | Chair | `JLS chair event anchor` | Sends `sit`/`unsit` events to `/event` for session control; backend now bridges those into `session_start` / `session_end`. |
 | Event feedback layer | `JLS EVENT FEEDBACK LAYER` | Polls `/api/world`, visualizes events via colors/glow/particles, is the primary test object for ritual/battle/feedback verification. |
 | Zone beacon | `JLS ZONE BEACON` | Sensors near avatars, reports watcher counts to `/event`. |
