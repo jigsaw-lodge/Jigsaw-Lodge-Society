@@ -1701,12 +1701,40 @@ async function handleArtifactSpawn(event) {
   };
 
   await db.saveArtifact(artifact);
+  artifactCache.updatedAt = 0;
+  artifactCache.items = [];
   await emitWorkerEvent("artifact_registered", {
     artifact_id: artifact.artifact_id,
     type: artifact.type,
     owner_id: artifact.owner_id,
     location: artifact.location,
     expires_at: artifact.expires_at,
+  });
+}
+
+async function handleArtifactExpire(event) {
+  const p = event.payload || {};
+  const artifactId = sanitizeText(p.artifact_id || p.id || "", "").trim();
+  if (!artifactId) return;
+
+  const artifact = await db.expireArtifact(artifactId, nowMs());
+  artifactCache.updatedAt = 0;
+  artifactCache.items = [];
+
+  if (!artifact) {
+    await emitWorkerEvent("artifact_expire_missing", {
+      artifact_id: artifactId,
+    });
+    return;
+  }
+
+  await emitWorkerEvent("artifact_expired", {
+    artifact_id: artifact.artifact_id,
+    type: artifact.type,
+    owner_id: artifact.owner_id,
+    location: artifact.location,
+    expires_at: artifact.expires_at,
+    active: false,
   });
 }
 
@@ -1795,6 +1823,10 @@ async function handleEvent(rawMessage) {
 
       case "artifact_spawn":
         await handleArtifactSpawn(event);
+        break;
+
+      case "artifact_expire":
+        await handleArtifactExpire(event);
         break;
 
       case "admin_cleanup_sessions":

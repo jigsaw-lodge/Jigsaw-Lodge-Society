@@ -357,6 +357,49 @@ async function getActiveArtifacts() {
   return rows;
 }
 
+async function listArtifacts(limit = 50, active = null) {
+  const n = Math.max(1, Math.min(200, Number(limit) || 50));
+  if (active === true || active === false) {
+    const { rows } = await pool.query(
+      `SELECT * FROM artifact_registry
+       WHERE active = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [active, n]
+    );
+    return rows;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT * FROM artifact_registry
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows;
+}
+
+async function getArtifact(artifactId) {
+  if (!artifactId) return null;
+  const { rows } = await pool.query(
+    `SELECT * FROM artifact_registry WHERE artifact_id = $1`,
+    [artifactId]
+  );
+  return rows[0] || null;
+}
+
+async function expireArtifact(artifactId, updatedAt = Date.now()) {
+  if (!artifactId) return null;
+  const { rows } = await pool.query(
+    `UPDATE artifact_registry
+     SET active = FALSE, updated_at = $2
+     WHERE artifact_id = $1
+     RETURNING *`,
+    [artifactId, Number(updatedAt) || Date.now()]
+  );
+  return rows[0] || null;
+}
+
 async function expireArtifacts(reference = Date.now()) {
   let limit = Number(reference) || 0;
   if (limit > 1_000_000_000_000) {
@@ -522,6 +565,9 @@ module.exports = {
   logEvent,
   saveArtifact,
   getActiveArtifacts,
+  listArtifacts,
+  getArtifact,
+  expireArtifact,
   expireArtifacts,
   getZone,
   upsertZone,

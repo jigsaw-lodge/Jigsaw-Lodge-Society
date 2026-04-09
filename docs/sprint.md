@@ -4,15 +4,15 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 51: Finish `/api/world` snapshot completeness (players/pairs/metrics) and lock the response shape.
-- `TODO` Task 58: Add admin tools for listing, expiring, and inspecting artifacts.
+- `TODO` Task 53-54: Verify zone pressure decay/flip behavior and add a matching automated test.
 - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
 
 ## Next (max 5)
-- `TODO` Rewrite launch checklist wording so "Done" means currently verified.
-- `TODO` Task 31-40: Harden the core loop (idempotency + no double-awards + ritual phases).
+- `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
+- `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
+- `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
+- `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Add a small “release note” habit: record evidence for each sprint.
-- `TODO` Add a simple “stack status” doc section that points to `docs/quick-commands.md`.
-- `TODO` Finish `/api/world` snapshot completeness (players/pairs/metrics) and lock the response shape.
 
 ## Blocked
 - (none)
@@ -30,6 +30,11 @@ This is the single page to look at every day.
 - `DONE` XP schema drift repaired: `players.xp` now uses `NUMERIC` in bootstrap, startup guard, live migration, and drift checks.
 - `DONE` `/api/world` contract tightened with `generated_at` and stronger route-level assertions for battle + metrics.
 - `DONE` Task 57: active artifacts now surface in `/api/world`, are tested, and render on the website observer view.
+- `DONE` Task 58: admin artifact tools now support list, inspect, and expire with worker-backed cache invalidation.
+- `DONE` Task 55-56: artifact lifecycle is now proven end-to-end, including natural expiry dropping from `/api/world` and stopping XP boosts.
+- `DONE` Added `docs/admin-artifacts.md` so live testing/support work is beginner-friendly.
+- `DONE` Test hygiene rule locked: automated artifact checks now use isolated zones and clean up their own artifacts.
+- `DONE` Production cleanup: removed stale test artifacts from shared zone `0:0` so live XP tests are no longer polluted.
 - `DONE` Task 60: added `docs/world-snapshot-explained.md` for the live snapshot contract.
 - `DONE` Website observer mode upgraded with live world metrics, artifact ledger, and a repeatable frontend deploy path.
 - `DONE` Task 52: battle bar is never null (`services/battleBar.js`).

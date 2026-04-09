@@ -84,10 +84,10 @@ The goal is not to finish everything at once. The goal is to always know the nex
 52. `DONE` Make battle bar data always return a valid object instead of `null`.
 53. `TODO` Verify zone pressure decay and flip logic match the design spec.
 54. `TODO` Add tests for zone flips and battle resolution.
-55. `TODO` Ensure artifact spawn, registration, expiry, and active-state lookup are all consistent.
-56. `TODO` Add artifact prune verification so expired artifacts stop affecting gameplay.
+55. `DONE` Ensure artifact spawn, registration, expiry, and active-state lookup are all consistent.
+56. `DONE` Add artifact prune verification so expired artifacts stop affecting gameplay.
 57. `DONE` Surface active artifacts in `/api/world` for the frontend and HUD.
-58. `TODO` Add admin tools for listing, expiring, and inspecting artifacts.
+58. `DONE` Add admin tools for listing, expiring, and inspecting artifacts.
 59. `TODO` Create a simple artifact balancing table in docs for future content design.
 60. `DONE` Write one “world snapshot explained” doc that tells you what each field is for.
 
@@ -144,14 +144,18 @@ If you want the smartest immediate sequence, do these next:
 
 1. Task 9 - remove stale/duplicate startup paths so there is one clear local boot flow.
 2. Task 10 - add a “first 15 minutes” onboarding section.
-3. Task 31 - verify session start persistence every time.
-4. Task 32 - implement exact 15-minute and 45-minute ritual rewards.
-5. Task 33 - prevent duplicate ritual rewards (idempotency protection).
-6. Task 35 - add tests that simulate session start, tick, timeout, and normal end.
-7. Task 51 - finish `/api/world` snapshot coverage (players/pairs/metrics completeness).
-8. Task 54 - add tests for zone flips and battle resolution.
-9. Task 96 - rewrite the launch checklist to reflect current truth only.
-10. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
+3. Task 51 - finish `/api/world` snapshot coverage (players/pairs/metrics completeness).
+4. Task 53 - verify zone pressure decay and flip logic match the design spec.
+5. Task 54 - add tests for zone flips and battle resolution.
+6. Task 61 - verify the relay sends both raw events and user-facing feed envelopes.
+7. Task 62 - add relay tests for connection, disconnect, heartbeat, and feed delivery.
+8. Task 73 - add request signing or token handling that is safe for in-world objects.
+9. Task 74 - verify furniture objects can start and maintain sessions correctly.
+10. Task 96 - rewrite the launch checklist to reflect current truth only.
+
+## Readiness rule discovered during live validation
+- Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
+- Shared test leftovers in zones like `0:0` can silently skew XP and make Second Life verification harder.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

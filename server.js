@@ -515,6 +515,64 @@ function registerRoutes() {
     }
   });
 
+  app.get("/api/admin/artifacts", async (req, res) => {
+    try {
+      ensureAdminRequest(req);
+      const activeRaw = String(req.query.active || "").trim().toLowerCase();
+      let active = null;
+      if (activeRaw === "1" || activeRaw === "true" || activeRaw === "yes") active = true;
+      if (activeRaw === "0" || activeRaw === "false" || activeRaw === "no") active = false;
+      const limit = Number(req.query.limit || 50);
+      await db.expireArtifacts(Math.floor(nowMs() / 1000));
+      const artifacts = await db.listArtifacts(limit, active);
+      return res.json({ ok: true, artifacts });
+    } catch (err) {
+      logger.error({ err }, "admin artifact list failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/admin/artifact/:artifactId", async (req, res) => {
+    try {
+      ensureAdminRequest(req);
+      const artifactId = sanitizeText(req.params?.artifactId || "", "");
+      if (!artifactId) return res.status(400).json({ error: "invalid_artifact_id" });
+      await db.expireArtifacts(Math.floor(nowMs() / 1000));
+      const artifact = await db.getArtifact(artifactId);
+      if (!artifact) return res.status(404).json({ error: "artifact_not_found" });
+      return res.json({ ok: true, artifact });
+    } catch (err) {
+      logger.error({ err }, "admin artifact inspect failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/admin/artifact/:artifactId/expire", async (req, res) => {
+    try {
+      ensureAdminRequest(req);
+      const artifactId = sanitizeText(req.params?.artifactId || "", "");
+      if (!artifactId) return res.status(400).json({ error: "invalid_artifact_id" });
+      const artifact = await db.getArtifact(artifactId);
+      if (!artifact) return res.status(404).json({ error: "artifact_not_found" });
+      const event = await publishEvent(redis, "artifact_expire", { artifact_id: artifactId }, {
+        source: "admin",
+        triggered_by: getAdminTokenFromRequest(req),
+      });
+      return res.json({
+        ok: true,
+        queued: true,
+        artifact_id: artifactId,
+        event_id: event.id,
+      });
+    } catch (err) {
+      logger.error({ err }, "admin artifact expire failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/admin/session/fast-forward", async (req, res) => {
     const body = req.body || {};
     try {
@@ -600,6 +658,7 @@ function registerRoutes() {
       const players = await db.listPlayers(25);
       const pairs = await db.listPairs(25);
       const sessions = await db.listActiveSessions(25);
+      await db.expireArtifacts(Math.floor(nowMs() / 1000));
       const artifacts = await db.getActiveArtifacts();
       const activeSessions = await db.countActiveSessions();
       const activePlayers5m = await db.countActivePlayersSince(nowMs() - 5 * 60 * 1000);
