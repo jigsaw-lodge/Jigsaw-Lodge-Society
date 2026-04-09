@@ -101,7 +101,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 67. `TODO` Make the cosmetics and kiosk surfaces read from live API data instead of mockups only.
 68. `DONE` Add a “connection lost / reconnecting” UI state for relay interruptions.
 69. `DONE` Create a HUD-facing JSON contract doc for the Second Life side.
-70. `TODO` Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
+70. `DONE` Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
 
 ## Phase 8 - Second Life Integration
 71. `DONE` Audit the current LSL scripts against the locked API contract.
@@ -144,14 +144,14 @@ If you want the smartest immediate sequence, do these next:
 
 1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 2. Task 95 - create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
-3. Task 70 - write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
-4. Task 93 - run and record a real `k6` load test once the tool is installed.
-5. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
-6. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
-7. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
-8. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
-9. Task 64 - make `/api/world` polling cadence match the overlay guidance.
-10. Task 65 - hook challenge, ritual, and honey state into the frontend UI.
+3. Task 93 - run and record a real `k6` load test once the tool is installed.
+4. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
+5. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
+6. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
+7. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
+8. Task 64 - make `/api/world` polling cadence match the overlay guidance.
+9. Task 65 - hook challenge, ritual, and honey state into the frontend UI.
+10. Task 66 - build a simple player dashboard showing XP, level, rituals, pentacles, and active boosts.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
