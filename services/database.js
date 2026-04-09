@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS players(
   level INT DEFAULT 0,
   rituals INT DEFAULT 0,
   rituals_today INT DEFAULT 0,
+  rituals_week INT DEFAULT 0,
+  rituals_month INT DEFAULT 0,
+  rituals_quarter INT DEFAULT 0,
   pentacles NUMERIC DEFAULT 0,
   bonds INT DEFAULT 0,
   order_type TEXT DEFAULT 'neutral',
@@ -35,16 +38,25 @@ CREATE TABLE IF NOT EXISTS players(
   poison_uses_today INT DEFAULT 0,
   royal_uses_today INT DEFAULT 0,
   last_daily_reset TEXT DEFAULT '',
+  last_weekly_reset TEXT DEFAULT '',
+  last_monthly_reset TEXT DEFAULT '',
+  last_quarterly_reset TEXT DEFAULT '',
   last_seen BIGINT DEFAULT 0,
   last_action_at BIGINT DEFAULT 0,
   watchers INT DEFAULT 0,
   stacks INT DEFAULT 0,
   surge_charge INT DEFAULT 0,
   surge_ready INT DEFAULT 0,
+  surge_stacks INT DEFAULT 0,
   group_tag INT DEFAULT 0,
   last_zone TEXT DEFAULT '0:0',
   session_xp NUMERIC DEFAULT 0,
-  total_l NUMERIC DEFAULT 0
+  total_l NUMERIC DEFAULT 0,
+  challenge_boost_pct NUMERIC DEFAULT 0,
+  challenge_boost_until BIGINT DEFAULT 0,
+  equip_slot1 TEXT DEFAULT '',
+  equip_slot2 TEXT DEFAULT '',
+  equip_slot3 TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS events(
@@ -95,6 +107,32 @@ CREATE TABLE IF NOT EXISTS artifact_registry(
   created_at BIGINT DEFAULT 0,
   updated_at BIGINT DEFAULT 0
  );
+
+CREATE TABLE IF NOT EXISTS zones(
+  zone_id TEXT PRIMARY KEY,
+  pressure NUMERIC DEFAULT 0,
+  owner TEXT,
+  last_flip BIGINT DEFAULT 0,
+  updated_at BIGINT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS challenges(
+  avatar TEXT PRIMARY KEY,
+  daily_progress INT DEFAULT 0,
+  weekly_progress INT DEFAULT 0,
+  monthly_progress INT DEFAULT 0,
+  quarterly_progress INT DEFAULT 0,
+  daily_claimed INT DEFAULT 0,
+  weekly_claimed INT DEFAULT 0,
+  monthly_claimed INT DEFAULT 0,
+  quarterly_claimed INT DEFAULT 0,
+  updated_at BIGINT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS treasury(
+  id INT PRIMARY KEY,
+  total_l NUMERIC DEFAULT 0
+);
 `;
 
 const PLAYER_COLUMNS = new Set([
@@ -102,6 +140,9 @@ const PLAYER_COLUMNS = new Set([
   "level",
   "rituals",
   "rituals_today",
+  "rituals_week",
+  "rituals_month",
+  "rituals_quarter",
   "pentacles",
   "bonds",
   "order_type",
@@ -120,16 +161,25 @@ const PLAYER_COLUMNS = new Set([
   "poison_uses_today",
   "royal_uses_today",
   "last_daily_reset",
+  "last_weekly_reset",
+  "last_monthly_reset",
+  "last_quarterly_reset",
   "last_seen",
   "last_action_at",
   "watchers",
   "stacks",
   "surge_charge",
   "surge_ready",
+  "surge_stacks",
   "group_tag",
   "last_zone",
   "session_xp",
   "total_l",
+  "challenge_boost_pct",
+  "challenge_boost_until",
+  "equip_slot1",
+  "equip_slot2",
+  "equip_slot3",
 ]);
 
 async function ensureSchema() {
@@ -173,7 +223,7 @@ async function saveSession(sessionId, data = {}) {
   };
   await pool.query(
     `INSERT INTO sessions(session_id, avatar_a, avatar_b, object_id, zone, started_at, last_tick, last_reward_at, active, duration, ended_at, watchers, group_tag)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (session_id) DO UPDATE SET
        avatar_a = EXCLUDED.avatar_a,
        avatar_b = EXCLUDED.avatar_b,
@@ -322,6 +372,144 @@ async function expireArtifacts(reference = Date.now()) {
   );
 }
 
+async function getZone(zoneId) {
+  if (!zoneId) return null;
+  const { rows } = await pool.query(`SELECT * FROM zones WHERE zone_id = $1`, [zoneId]);
+  return rows[0] || null;
+}
+
+async function upsertZone(zoneId, fields = {}) {
+  if (!zoneId) return;
+  const payload = {
+    pressure: Number(fields.pressure ?? 0),
+    owner: fields.owner || null,
+    last_flip: Number(fields.last_flip ?? 0),
+    updated_at: Number(fields.updated_at ?? Date.now()),
+  };
+  await pool.query(
+    `INSERT INTO zones(zone_id, pressure, owner, last_flip, updated_at)
+     VALUES($1,$2,$3,$4,$5)
+     ON CONFLICT (zone_id) DO UPDATE SET
+       pressure = EXCLUDED.pressure,
+       owner = EXCLUDED.owner,
+       last_flip = EXCLUDED.last_flip,
+       updated_at = EXCLUDED.updated_at`,
+    [zoneId, payload.pressure, payload.owner, payload.last_flip, payload.updated_at]
+  );
+}
+
+async function getChallenge(avatar) {
+  if (!avatar) return null;
+  const { rows } = await pool.query(`SELECT * FROM challenges WHERE avatar = $1`, [avatar]);
+  return rows[0] || null;
+}
+
+async function upsertChallenge(avatar, fields = {}) {
+  if (!avatar) return;
+  const payload = {
+    daily_progress: Number(fields.daily_progress ?? 0),
+    weekly_progress: Number(fields.weekly_progress ?? 0),
+    monthly_progress: Number(fields.monthly_progress ?? 0),
+    quarterly_progress: Number(fields.quarterly_progress ?? 0),
+    daily_claimed: Number(fields.daily_claimed ?? 0),
+    weekly_claimed: Number(fields.weekly_claimed ?? 0),
+    monthly_claimed: Number(fields.monthly_claimed ?? 0),
+    quarterly_claimed: Number(fields.quarterly_claimed ?? 0),
+    updated_at: Number(fields.updated_at ?? Date.now()),
+  };
+  await pool.query(
+    `INSERT INTO challenges(avatar, daily_progress, weekly_progress, monthly_progress, quarterly_progress, daily_claimed, weekly_claimed, monthly_claimed, quarterly_claimed, updated_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     ON CONFLICT (avatar) DO UPDATE SET
+       daily_progress = EXCLUDED.daily_progress,
+       weekly_progress = EXCLUDED.weekly_progress,
+       monthly_progress = EXCLUDED.monthly_progress,
+       quarterly_progress = EXCLUDED.quarterly_progress,
+       daily_claimed = EXCLUDED.daily_claimed,
+       weekly_claimed = EXCLUDED.weekly_claimed,
+       monthly_claimed = EXCLUDED.monthly_claimed,
+       quarterly_claimed = EXCLUDED.quarterly_claimed,
+       updated_at = EXCLUDED.updated_at`,
+    [
+      avatar,
+      payload.daily_progress,
+      payload.weekly_progress,
+      payload.monthly_progress,
+      payload.quarterly_progress,
+      payload.daily_claimed,
+      payload.weekly_claimed,
+      payload.monthly_claimed,
+      payload.quarterly_claimed,
+      payload.updated_at,
+    ]
+  );
+}
+
+async function addTreasury(amount) {
+  const value = Number(amount) || 0;
+  await pool.query(
+    `INSERT INTO treasury(id, total_l)
+     VALUES(1,$1)
+     ON CONFLICT (id) DO UPDATE SET total_l = treasury.total_l + EXCLUDED.total_l`,
+    [value]
+  );
+}
+
+async function getTreasuryTotal() {
+  const { rows } = await pool.query(`SELECT total_l FROM treasury WHERE id = 1`);
+  return rows[0]?.total_l ?? 0;
+}
+
+async function listPlayers(limit = 25) {
+  const n = Math.max(1, Math.min(200, Number(limit) || 25));
+  const { rows } = await pool.query(
+    `SELECT avatar, xp, level, rituals, pentacles, bonds, order_type, zone, watchers, honey_type, honey_expire, surge_ready, last_seen
+     FROM players
+     ORDER BY last_seen DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows;
+}
+
+async function listPairs(limit = 25) {
+  const n = Math.max(1, Math.min(200, Number(limit) || 25));
+  const { rows } = await pool.query(
+    `SELECT pair_key, avatar_a, avatar_b, shared_xp, sessions, updated_at
+     FROM pairs
+     ORDER BY updated_at DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows;
+}
+
+async function listActiveSessions(limit = 25) {
+  const n = Math.max(1, Math.min(200, Number(limit) || 25));
+  const { rows } = await pool.query(
+    `SELECT session_id, avatar_a, avatar_b, object_id, zone, started_at, last_tick, last_reward_at, duration, ended_at, watchers, group_tag
+     FROM sessions
+     WHERE active = TRUE
+     ORDER BY started_at DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows;
+}
+
+async function countActiveSessions() {
+  const { rows } = await pool.query(`SELECT COUNT(*)::int AS count FROM sessions WHERE active = TRUE`);
+  return rows[0]?.count ?? 0;
+}
+
+async function countActivePlayersSince(sinceMs) {
+  const cutoff = Number(sinceMs) || 0;
+  const { rows } = await pool.query(`SELECT COUNT(*)::int AS count FROM players WHERE last_seen >= $1`, [
+    cutoff,
+  ]);
+  return rows[0]?.count ?? 0;
+}
+
 module.exports = {
   pool,
   ensureSchema,
@@ -334,4 +522,15 @@ module.exports = {
   saveArtifact,
   getActiveArtifacts,
   expireArtifacts,
+  getZone,
+  upsertZone,
+  getChallenge,
+  upsertChallenge,
+  addTreasury,
+  getTreasuryTotal,
+  listPlayers,
+  listPairs,
+  listActiveSessions,
+  countActiveSessions,
+  countActivePlayersSince,
 };

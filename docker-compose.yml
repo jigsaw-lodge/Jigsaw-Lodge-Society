@@ -83,5 +83,18 @@ services:
     ports:
       - "3010:3010"
 
+  k6:
+    image: grafana/k6:0.54.0
+    container_name: jls_k6
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      BASE_URL: http://backend:3000
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["k6"]
+
 volumes:
   jls_db_data:

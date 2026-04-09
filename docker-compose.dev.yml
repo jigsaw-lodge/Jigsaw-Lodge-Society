@@ -1,0 +1,42 @@
+version: "3.9"
+
+# Dev override: hot-reload services so we don't rebuild on every code change.
+# Use with:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  backend:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - jls_node_modules:/app/node_modules
+    command: ["bash", "-lc", "npm install && node --watch server.js"]
+    environment:
+      # In dev, allow overriding shared token easily.
+      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  worker:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - jls_node_modules:/app/node_modules
+    command: ["bash", "-lc", "npm install && node --watch workers/engineWorker.js"]
+    environment:
+      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  relay:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - jls_node_modules:/app/node_modules
+    command: ["bash", "-lc", "npm install && node --watch wsrelay.js"]
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+volumes:
+  jls_node_modules:

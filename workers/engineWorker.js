@@ -15,6 +15,7 @@ const {
 } = require("../services/eventDispatcher");
 const { sanitizeAvatar, sanitizeZone, sanitizeText } = require("../services/validation");
 const db = require("../services/database");
+const { levelFromTotalXp } = require("../services/xpCurve");
 
 const logger = pino({ level: process.env.LOG_LEVEL || "info" });
 
@@ -32,10 +33,15 @@ const DAILY_UTC_FMT = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-const ACTIVE_REWARD_MS = 60_000;
-const SESSION_IDLE_TIMEOUT_MS = 120_000;
-const SESSION_RITUAL_MS = 45 * 60 * 1000;
+const ACTIVE_REWARD_MS = Number(process.env.ACTIVE_REWARD_MS || 60_000);
+const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS || 120_000);
+const SESSION_PHASE_15_MS = Number(process.env.SESSION_PHASE_15_MS || 15 * 60 * 1000);
+const SESSION_RITUAL_MS = Number(process.env.SESSION_RITUAL_MS || 45 * 60 * 1000);
 const DRIP_BASE_XP = 5;
+const SURGE_XP_BONUS = 1.25;
+const SURGE_CHARGE_STEP = 10;
+const SURGE_DECAY_STEP = 5;
+const SURGE_DECAY_IDLE_MS = 60_000;
 
 const HONEY_DURATIONS = {
   normal: 45 * 60,
@@ -55,6 +61,15 @@ const HONEY_MULTIPLIERS = {
 const ARTIFACT_CACHE_TTL_MS = Number(process.env.ARTIFACT_CACHE_TTL_MS) || 15_000;
 const ARTIFACT_PRUNE_INTERVAL_MS = Number(process.env.ARTIFACT_PRUNE_INTERVAL_MS) || 60_000;
 const artifactCache = { updatedAt: 0, items: [] };
+const CHALLENGE_TARGET_DAILY = Number(process.env.CHALLENGE_TARGET_DAILY || 5);
+const CHALLENGE_TARGET_WEEKLY = Number(process.env.CHALLENGE_TARGET_WEEKLY || 25);
+const CHALLENGE_TARGET_MONTHLY = Number(process.env.CHALLENGE_TARGET_MONTHLY || 100);
+const CHALLENGE_TARGET_QUARTERLY = Number(process.env.CHALLENGE_TARGET_QUARTERLY || 300);
+const SURGE_WINDOW_MS = 7000;
+const SURGE_PENDING_PREFIX = "jls:surge:pending:";
+const ZONE_PRESSURE_DECAY = 0.98;
+const ZONE_PRESSURE_TICK_MS = 500;
+const ZONE_FLIP_THRESHOLD = 100;
 
 const redis = createRedisClient({ url: REDIS_URL });
 const sub = redis.duplicate();
@@ -74,9 +89,36 @@ function utcDate() {
   return DAILY_UTC_FMT.format(new Date());
 }
 
+function utcWeekKey() {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const week = Math.ceil((((now - Date.UTC(year, 0, 1)) / 86400000) + 1) / 7);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+function utcMonthKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function utcQuarterKey() {
+  const now = new Date();
+  const quarter = Math.floor(now.getUTCMonth() / 3) + 1;
+  return `${now.getUTCFullYear()}-Q${quarter}`;
+}
+
 function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function safeParseJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 function toInt(value, fallback = 0) {
@@ -99,6 +141,9 @@ function defaultPlayer(avatarId) {
     level: 0,
     rituals: 0,
     rituals_today: 0,
+    rituals_week: 0,
+    rituals_month: 0,
+    rituals_quarter: 0,
     pentacles: 0,
     bonds: 0,
     order: "neutral",
@@ -117,16 +162,25 @@ function defaultPlayer(avatarId) {
     poison_uses_today: 0,
     royal_uses_today: 0,
     last_daily_reset: utcDate(),
+    last_weekly_reset: utcWeekKey(),
+    last_monthly_reset: utcMonthKey(),
+    last_quarterly_reset: utcQuarterKey(),
     last_seen: 0,
     last_action_at: 0,
     watchers: 0,
     stacks: 0,
     surge_charge: 0,
     surge_ready: 0,
+    surge_stacks: 0,
     group_tag: 0,
     last_zone: "0:0",
     session_xp: 0,
     total_l$: 0,
+    challenge_boost_pct: 0,
+    challenge_boost_until: 0,
+    equip_slot1: "",
+    equip_slot2: "",
+    equip_slot3: "",
   };
 }
 
@@ -138,6 +192,9 @@ function normalizePlayer(raw, avatarId) {
   p.level = toInt(p.level, 0);
   p.rituals = toInt(p.rituals, 0);
   p.rituals_today = toInt(p.rituals_today, 0);
+  p.rituals_week = toInt(p.rituals_week, 0);
+  p.rituals_month = toInt(p.rituals_month, 0);
+  p.rituals_quarter = toInt(p.rituals_quarter, 0);
   p.pentacles = toNumber(p.pentacles, 0);
   p.bonds = toInt(p.bonds, 0);
   p.order = String(p.order || "neutral");
@@ -156,16 +213,25 @@ function normalizePlayer(raw, avatarId) {
   p.poison_uses_today = toInt(p.poison_uses_today, 0);
   p.royal_uses_today = toInt(p.royal_uses_today, 0);
   p.last_daily_reset = String(p.last_daily_reset || utcDate());
+  p.last_weekly_reset = String(p.last_weekly_reset || utcWeekKey());
+  p.last_monthly_reset = String(p.last_monthly_reset || utcMonthKey());
+  p.last_quarterly_reset = String(p.last_quarterly_reset || utcQuarterKey());
   p.last_seen = toInt(p.last_seen, 0);
   p.last_action_at = toInt(p.last_action_at, 0);
   p.watchers = toInt(p.watchers, 0);
   p.stacks = toInt(p.stacks, 0);
   p.surge_charge = toInt(p.surge_charge, 0);
   p.surge_ready = toInt(p.surge_ready, 0);
+  p.surge_stacks = toInt(p.surge_stacks, 0);
   p.group_tag = toInt(p.group_tag, 0);
   p.last_zone = String(p.last_zone || p.zone || "0:0");
   p.session_xp = toNumber(p.session_xp, 0);
   p.total_l$ = toNumber(p.total_l$, 0);
+  p.challenge_boost_pct = toNumber(p.challenge_boost_pct, 0);
+  p.challenge_boost_until = toInt(p.challenge_boost_until, 0);
+  p.equip_slot1 = String(p.equip_slot1 || "");
+  p.equip_slot2 = String(p.equip_slot2 || "");
+  p.equip_slot3 = String(p.equip_slot3 || "");
   return p;
 }
 
@@ -176,6 +242,21 @@ function hashFromObject(obj) {
     out[key] = typeof value === "string" ? value : String(value);
   }
   return out;
+}
+
+function buildHSetArgs(fields = {}) {
+  const args = [];
+  for (const [field, value] of Object.entries(fields || {})) {
+    if (value === undefined || value === null) continue;
+    args.push(field, value);
+  }
+  return args;
+}
+
+async function hSetFields(key, fields = {}) {
+  const args = buildHSetArgs(fields);
+  if (args.length === 0) return;
+  await redis.hSet(key, ...args);
 }
 
 function mapFieldsForDb(fields) {
@@ -192,6 +273,105 @@ function mapFieldsForDb(fields) {
 
 function objectFromHash(hash, avatarId) {
   return normalizePlayer(hash || {}, avatarId);
+}
+
+function deriveJealousyLevel(player) {
+  if (!player) return 0;
+  const watchers = toInt(player.watchers, 0);
+  const bonds = toInt(player.bonds, 0);
+  const ritualsToday = toInt(player.rituals_today, 0);
+  const base = watchers * 2 + bonds * 3 + ritualsToday * 5;
+  return Math.min(100, Math.round(base));
+}
+
+function deriveRivalTag(player) {
+  const jealousy = deriveJealousyLevel(player);
+  if (jealousy >= 80) return "surpass";
+  if (jealousy >= 60) return "rival";
+  if (jealousy >= 40) return "close";
+  return "stable";
+}
+
+function deriveZonePressure(session, players = []) {
+  if (!session) return 0;
+  const watchers = toInt(session.watchers, 0);
+  const participants = Math.max(1, players.length);
+  const base = (participants * 5 + watchers) * 3;
+  return Math.min(100, Math.round(base));
+}
+
+function deriveOrderMultiplier(order) {
+  const key = String(order || "neutral").toLowerCase();
+  if (key === "dominant") return 0.85;
+  if (key === "weak") return 1.25;
+  return 1;
+}
+
+function deriveChallengeProgress(players = []) {
+  if (!players.length) {
+    return { daily: 0, weekly: 0, monthly: 0, quarterly: 0 };
+  }
+  const maxDaily = Math.max(...players.map((p) => toInt(p.rituals_today, 0)));
+  const maxWeekly = Math.max(...players.map((p) => toInt(p.rituals_week, 0)));
+  const maxMonthly = Math.max(...players.map((p) => toInt(p.rituals_month, 0)));
+  const maxQuarterly = Math.max(...players.map((p) => toInt(p.rituals_quarter, 0)));
+  const dailyTarget = Math.max(1, CHALLENGE_TARGET_DAILY);
+  const weeklyTarget = Math.max(1, CHALLENGE_TARGET_WEEKLY);
+  const monthlyTarget = Math.max(1, CHALLENGE_TARGET_MONTHLY);
+  const quarterlyTarget = Math.max(1, CHALLENGE_TARGET_QUARTERLY);
+  return {
+    daily: Math.min(100, Math.round((maxDaily / dailyTarget) * 100)),
+    weekly: Math.min(100, Math.round((maxWeekly / weeklyTarget) * 100)),
+    monthly: Math.min(100, Math.round((maxMonthly / monthlyTarget) * 100)),
+    quarterly: Math.min(100, Math.round((maxQuarterly / quarterlyTarget) * 100)),
+  };
+}
+
+function buildFlowPayload(session, players = []) {
+  const sanitizedPlayers = players.filter(Boolean);
+  const zone = String(session?.zone || "0:0");
+  const watchers = toInt(session?.watchers, 0);
+  const jealousyDetails = sanitizedPlayers.map((player) => ({
+    avatar: player.avatar_id,
+    level: deriveJealousyLevel(player),
+    rival_tag: deriveRivalTag(player),
+  }));
+  const jealousyLevel = jealousyDetails.length
+    ? Math.max(...jealousyDetails.map((detail) => detail.level))
+    : 0;
+  const jealousyTag = jealousyDetails.length
+    ? jealousyDetails.sort((a, b) => b.level - a.level)[0].rival_tag
+    : "stable";
+  const challenge = deriveChallengeProgress(sanitizedPlayers);
+  return {
+    zone,
+    participants: sanitizedPlayers.map((player) => player.avatar_id),
+    watchers,
+    zone_pressure: deriveZonePressure(session, sanitizedPlayers),
+    jealousy_level: jealousyLevel,
+    jealousy_tag: jealousyTag,
+    jealousy_details: jealousyDetails,
+    challenge_daily: challenge.daily,
+    challenge_weekly: challenge.weekly,
+    challenge_monthly: challenge.monthly,
+    challenge_quarterly: challenge.quarterly,
+    challenge_progress: challenge.daily,
+  };
+}
+
+async function emitFlowUpdate(session, players = []) {
+  if (!session) return;
+  const payload = buildFlowPayload(session, players);
+  logger.info(
+    {
+      zone: payload.zone,
+      zone_pressure: payload.zone_pressure,
+      jealousy_level: payload.jealousy_level,
+      challenge_progress: payload.challenge_progress,
+    },
+    "flow_update emitted"
+  );
+  await emitWorkerEvent("flow_update", payload);
 }
 
 async function refreshActiveArtifacts() {
@@ -226,6 +406,43 @@ async function getRelevantArtifacts(zone) {
     if (expiresAt > 0 && expiresAt <= now) return false;
     return artifactZonesMatch(artifact, normalizedZone);
   });
+}
+
+async function applyZonePressureTick(zoneId, delta = 0, orderMultiplier = 1, ownerHint = "") {
+  const zone = sanitizeZone(zoneId);
+  if (!zone) return null;
+  const existing = (await db.getZone(zone)) || {};
+  const current = toNumber(existing.pressure, 0);
+  let pressure = current * ZONE_PRESSURE_DECAY;
+  pressure += Math.max(0, delta * orderMultiplier);
+  let owner = existing.owner || "";
+  let lastFlip = toInt(existing.last_flip, 0);
+  let flipped = false;
+
+  if (pressure >= ZONE_FLIP_THRESHOLD) {
+    pressure = 0;
+    owner = String(ownerHint || existing.owner || "");
+    lastFlip = nowMs();
+    flipped = true;
+  }
+
+  await db.upsertZone(zone, {
+    pressure,
+    owner,
+    last_flip: lastFlip,
+    updated_at: nowMs(),
+  });
+
+  if (flipped) {
+    await emitWorkerEvent("zone_flip", {
+      zone,
+      owner,
+      pressure,
+      last_flip: lastFlip,
+    });
+  }
+
+  return { zone, pressure, owner, flipped };
 }
 
 async function applyArtifactModifiers(player, baseXp, context = {}) {
@@ -272,8 +489,7 @@ async function applyArtifactModifiers(player, baseXp, context = {}) {
 }
 
 function calculateLevel(xp) {
-  if (xp < 100) return 0;
-  return Math.max(1, Math.floor(Math.log(xp / 100) / Math.log(1.12)) + 1);
+  return levelFromTotalXp(xp);
 }
 
 function calculateHoneyMultiplier(player) {
@@ -297,6 +513,36 @@ function calculateHoneyMultiplier(player) {
   return 1;
 }
 
+function applySurgeMultiplier(player, baseXp) {
+  if (toInt(player.surge_ready, 0) >= 1) {
+    return Math.round(baseXp * SURGE_XP_BONUS * 100) / 100;
+  }
+  return baseXp;
+}
+
+function updateSurgeCharge(player, delta = 0, nowMsValue = nowMs()) {
+  const updates = {};
+  let charge = toInt(player.surge_charge, 0);
+  if (delta !== 0) {
+    charge = Math.min(100, Math.max(0, charge + delta));
+    updates.surge_charge = charge;
+    updates.surge_ready = charge >= 100 ? 1 : 0;
+  }
+
+  const idleMs = nowMsValue - toInt(player.last_action_at, nowMsValue);
+  if (idleMs > SURGE_DECAY_IDLE_MS && charge > 0) {
+    charge = Math.max(0, charge - SURGE_DECAY_STEP);
+    updates.surge_charge = charge;
+    updates.surge_ready = charge >= 100 ? 1 : 0;
+  }
+
+  if (updates.surge_charge !== undefined) {
+    player.surge_charge = charge;
+    player.surge_ready = updates.surge_ready;
+  }
+  return updates;
+}
+
 function calculateActiveXp(player, participants, flags) {
   const baseXP = 100;
   const synergyMultiplier = 1 + participants * 0.15;
@@ -314,7 +560,8 @@ function calculateActiveXp(player, participants, flags) {
     zoneMultiplier *
     groupTagMultiplier;
 
-  return Math.max(0, Math.round(raw * 100) / 100);
+  const adjusted = applySurgeMultiplier(player, raw);
+  return Math.max(0, Math.round(adjusted * 100) / 100);
 }
 
 function calculateDripXp(player, flags) {
@@ -345,7 +592,7 @@ async function ensurePlayer(avatarId) {
   }
 
   const base = defaultPlayer(avatarId);
-  await redis.hSet(`${PLAYER_PREFIX}${avatarId}`, hashFromObject(base));
+  await hSetFields(`${PLAYER_PREFIX}${avatarId}`, hashFromObject(base));
   await db.ensurePlayer(avatarId);
   return base;
 }
@@ -353,7 +600,7 @@ async function ensurePlayer(avatarId) {
 async function savePlayer(avatarId, updates) {
   const clean = hashFromObject(updates);
   if (Object.keys(clean).length === 0) return;
-  await redis.hSet(`${PLAYER_PREFIX}${avatarId}`, clean);
+  await hSetFields(`${PLAYER_PREFIX}${avatarId}`, clean);
   const dbFields = mapFieldsForDb(updates);
   if (Object.keys(dbFields).length > 0) {
     await db.ensurePlayer(avatarId);
@@ -363,10 +610,17 @@ async function savePlayer(avatarId, updates) {
 
 async function refreshPlayerLifecycle(player) {
   const today = utcDate();
+  const weekKey = utcWeekKey();
+  const monthKey = utcMonthKey();
+  const quarterKey = utcQuarterKey();
   const now = nowSec();
   const updates = {
     last_seen: nowMs(),
   };
+  let resetDaily = false;
+  let resetWeekly = false;
+  let resetMonthly = false;
+  let resetQuarterly = false;
 
   if (player.last_daily_reset !== today) {
     updates.rituals_today = 0;
@@ -374,6 +628,25 @@ async function refreshPlayerLifecycle(player) {
     updates.poison_uses_today = 0;
     updates.royal_uses_today = 0;
     updates.last_daily_reset = today;
+    resetDaily = true;
+  }
+
+  if (player.last_weekly_reset !== weekKey) {
+    updates.rituals_week = 0;
+    updates.last_weekly_reset = weekKey;
+    resetWeekly = true;
+  }
+
+  if (player.last_monthly_reset !== monthKey) {
+    updates.rituals_month = 0;
+    updates.last_monthly_reset = monthKey;
+    resetMonthly = true;
+  }
+
+  if (player.last_quarterly_reset !== quarterKey) {
+    updates.rituals_quarter = 0;
+    updates.last_quarterly_reset = quarterKey;
+    resetQuarterly = true;
   }
 
   if (player.honey_type && player.honey_expire > 0 && player.honey_expire <= now) {
@@ -400,12 +673,50 @@ async function refreshPlayerLifecycle(player) {
     updates.honey_expire = 0;
   }
 
+  const surgeDecay = updateSurgeCharge(player, 0, nowMs());
+  Object.assign(updates, surgeDecay);
+
   if (Object.keys(updates).length > 0) {
     await savePlayer(player.avatar_id, updates);
     Object.assign(player, updates);
   }
 
+  if (resetDaily || resetWeekly || resetMonthly || resetQuarterly) {
+    const current = (await db.getChallenge(player.avatar_id)) || {};
+    await db.upsertChallenge(player.avatar_id, {
+      daily_progress: resetDaily ? 0 : Number(current.daily_progress || 0),
+      weekly_progress: resetWeekly ? 0 : Number(current.weekly_progress || 0),
+      monthly_progress: resetMonthly ? 0 : Number(current.monthly_progress || 0),
+      quarterly_progress: resetQuarterly ? 0 : Number(current.quarterly_progress || 0),
+      daily_claimed: resetDaily ? 0 : Number(current.daily_claimed || 0),
+      weekly_claimed: resetWeekly ? 0 : Number(current.weekly_claimed || 0),
+      monthly_claimed: resetMonthly ? 0 : Number(current.monthly_claimed || 0),
+      quarterly_claimed: resetQuarterly ? 0 : Number(current.quarterly_claimed || 0),
+      updated_at: nowMs(),
+    });
+  }
+
   return player;
+}
+
+async function bumpChallengeProgress(player) {
+  if (!player || !player.avatar_id) return;
+  const current = (await db.getChallenge(player.avatar_id)) || {};
+  const daily = Math.min(100, Math.round((toInt(player.rituals_today, 0) / CHALLENGE_TARGET_DAILY) * 100));
+  const weekly = Math.min(100, Math.round((toInt(player.rituals_week, 0) / CHALLENGE_TARGET_WEEKLY) * 100));
+  const monthly = Math.min(100, Math.round((toInt(player.rituals_month, 0) / CHALLENGE_TARGET_MONTHLY) * 100));
+  const quarterly = Math.min(100, Math.round((toInt(player.rituals_quarter, 0) / CHALLENGE_TARGET_QUARTERLY) * 100));
+  await db.upsertChallenge(player.avatar_id, {
+    daily_progress: daily,
+    weekly_progress: weekly,
+    monthly_progress: monthly,
+    quarterly_progress: quarterly,
+    daily_claimed: Number(current.daily_claimed || 0),
+    weekly_claimed: Number(current.weekly_claimed || 0),
+    monthly_claimed: Number(current.monthly_claimed || 0),
+    quarterly_claimed: Number(current.quarterly_claimed || 0),
+    updated_at: nowMs(),
+  });
 }
 
 async function awardXp(avatarId, amount, reason, extra = {}) {
@@ -433,6 +744,9 @@ async function awardXp(avatarId, amount, reason, extra = {}) {
     last_seen: player.last_seen,
     session_xp: player.session_xp,
   };
+
+  const surgeUpdates = updateSurgeCharge(player, SURGE_CHARGE_STEP, nowMs());
+  Object.assign(updates, surgeUpdates);
 
   if (artifactEffects.surgeBonus) {
     const stacks = toInt(player.surge_stacks, 0) + Math.max(0, Math.round(artifactEffects.surgeBonus));
@@ -520,6 +834,8 @@ async function getSession(sessionId) {
     duration: toInt(hash.duration, 0),
     group_tag: toInt(hash.group_tag, 0),
     watchers: toInt(hash.watchers, 0),
+    phase_15_awarded: toInt(hash.phase_15_awarded, 0),
+    ritual_awarded: toInt(hash.ritual_awarded, 0),
   };
 }
 
@@ -534,7 +850,7 @@ async function getSessionByAvatar(avatarId) {
 async function saveSession(sessionId, fields) {
   const clean = hashFromObject(fields);
   if (Object.keys(clean).length === 0) return;
-  await redis.hSet(`${SESSION_PREFIX}${sessionId}`, clean);
+  await hSetFields(`${SESSION_PREFIX}${sessionId}`, clean);
   await db.saveSession(sessionId, fields);
 }
 
@@ -544,7 +860,7 @@ async function clearAvatarSessionLinks(session) {
   if (session.avatar_a) delArgs.push(`${AVATAR_SESSION_PREFIX}${session.avatar_a}`);
   if (session.avatar_b) delArgs.push(`${AVATAR_SESSION_PREFIX}${session.avatar_b}`);
   if (delArgs.length > 0) {
-    await redis.del(delArgs);
+    await redis.del(...delArgs);
   }
   if (session.session_id) {
     await db.saveSession(session.session_id, {
@@ -615,20 +931,34 @@ async function handleSessionStart(event) {
   await ensurePlayer(avatarA);
   await ensurePlayer(avatarB);
 
+  const existing = await getSession(sessionId);
+  const effectiveStartedAt =
+    existing && existing.active === 1 && toInt(existing.started_at, 0) > 0
+      ? toInt(existing.started_at, startedAt)
+      : startedAt;
+
+  // Reset per-session XP counters at the beginning of a session so end-of-session
+  // winner/loser resolution is meaningful.
+  await savePlayer(avatarA, { session_xp: 0, last_seen: nowMs() });
+  await savePlayer(avatarB, { session_xp: 0, last_seen: nowMs() });
+
   const session = {
     session_id: sessionId,
     avatar_a: avatarA,
     avatar_b: avatarB,
     object_id: objectId,
     zone,
-    started_at: startedAt,
-    last_tick: startedAt,
-    last_reward_at: startedAt,
+    order: String(p.order || "neutral"),
+    started_at: effectiveStartedAt,
+    last_tick: effectiveStartedAt,
+    last_reward_at: existing ? toInt(existing.last_reward_at, effectiveStartedAt) : effectiveStartedAt,
     active: 1,
     ended_at: 0,
     duration: 0,
     group_tag: toInt(p.group_tag, 0),
     watchers: toInt(p.watchers, 0),
+    phase_15_awarded: existing ? toInt(existing.phase_15_awarded, 0) : 0,
+    ritual_awarded: existing ? toInt(existing.ritual_awarded, 0) : 0,
   };
 
   await saveSession(sessionId, session);
@@ -653,8 +983,29 @@ async function handleSessionTick(event) {
   if (!session || !session.active) return;
 
   const now = nowMs();
+  const startedAt = toInt(session.started_at, now);
+  const duration = Math.max(0, now - startedAt);
   const elapsedSinceTick = now - toInt(session.last_tick, session.started_at || now);
   if (elapsedSinceTick > SESSION_IDLE_TIMEOUT_MS) return;
+
+  if (duration >= SESSION_PHASE_15_MS && toInt(session.phase_15_awarded, 0) !== 1) {
+    const avatarA = session.avatar_a;
+    const avatarB = session.avatar_b;
+    const participants = [avatarA, avatarB].filter(Boolean);
+    for (const participant of participants) {
+      await awardXp(participant, 25, "ritual_phase_15", { session_id: session.session_id });
+    }
+    await saveSession(session.session_id, {
+      phase_15_awarded: 1,
+      phase_15_awarded_at: now,
+    });
+    await emitWorkerEvent("ritual_phase_15", {
+      session_id: session.session_id,
+      avatar_a: avatarA,
+      avatar_b: avatarB,
+      duration,
+    });
+  }
 
   const elapsedSinceReward = now - toInt(session.last_reward_at, session.started_at || now);
   if (elapsedSinceReward < ACTIVE_REWARD_MS) {
@@ -677,6 +1028,7 @@ async function handleSessionTick(event) {
   const hasGroupTag = truthy(p.group_tag) || toInt(session.group_tag, 0) > 0;
 
   let totalGain = 0;
+  const participantPlayers = [];
 
   for (const participant of participants) {
     const player = await ensurePlayer(participant);
@@ -696,6 +1048,7 @@ async function handleSessionTick(event) {
     });
 
     totalGain += result.gain;
+    participantPlayers.push(result.player);
   }
 
   await saveSession(session.session_id, {
@@ -704,18 +1057,22 @@ async function handleSessionTick(event) {
     watchers: toInt(p.watchers, session.watchers),
     group_tag: toInt(p.group_tag, session.group_tag),
     zone: sanitizeZone(p.zone || session.zone),
+    order: String(p.order || session.order || "neutral"),
   });
 
   const pair = await redis.hGetAll(`${PAIR_PREFIX}${session.session_id}`);
   const currentShared = toNumber(pair.shared_xp, 0);
-  await redis.hSet(`${PAIR_PREFIX}${session.session_id}`, {
-    pair_key: session.session_id,
-    avatar_a: avatarA,
-    avatar_b: avatarB,
-    shared_xp: String(currentShared + totalGain),
-    sessions: String(toNumber(pair.sessions, 0)),
-    updated_at: String(nowMs()),
-  });
+  await hSetFields(
+    `${PAIR_PREFIX}${session.session_id}`,
+    hashFromObject({
+      pair_key: session.session_id,
+      avatar_a: avatarA,
+      avatar_b: avatarB,
+      shared_xp: String(currentShared + totalGain),
+      sessions: String(toNumber(pair.sessions, 0)),
+      updated_at: String(nowMs()),
+    })
+  );
   await db.updatePair(session.session_id, {
     avatar_a: avatarA,
     avatar_b: avatarB,
@@ -731,6 +1088,7 @@ async function handleSessionTick(event) {
     xp_awarded: totalGain,
     zone: sanitizeZone(p.zone || session.zone),
   });
+  await emitFlowUpdate(session, participantPlayers);
 }
 
 async function handleSessionEnd(event) {
@@ -740,10 +1098,11 @@ async function handleSessionEnd(event) {
 
   const session = await getSessionByAvatar(avatar);
   if (!session) return;
+  if (!session.active || toInt(session.ended_at, 0) > 0) return;
 
   const now = nowMs();
   const startedAt = toInt(session.started_at, now);
-  const duration = Math.max(0, toInt(p.duration, now - startedAt));
+  const duration = Math.max(0, now - startedAt);
   const avatarA = session.avatar_a;
   const avatarB = session.avatar_b;
 
@@ -755,26 +1114,65 @@ async function handleSessionEnd(event) {
     last_reward_at: toInt(session.last_reward_at, startedAt),
   });
 
-  await clearAvatarSessionLinks(session);
-
   let ritualComplete = false;
   let ritualXp = 0;
+  const participantPlayers = [];
 
-  if (duration >= SESSION_RITUAL_MS) {
+  // If the session ended after the 15-minute mark but the milestone never fired (no tick),
+  // award it once here (idempotent via session flag).
+  if (duration >= SESSION_PHASE_15_MS && toInt(session.phase_15_awarded, 0) !== 1) {
+    for (const participant of [avatarA, avatarB].filter(Boolean)) {
+      await awardXp(participant, 25, "ritual_phase_15", { session_id: session.session_id, duration });
+    }
+    await saveSession(session.session_id, { phase_15_awarded: 1, phase_15_awarded_at: now });
+    await emitWorkerEvent("ritual_phase_15", {
+      session_id: session.session_id,
+      avatar_a: avatarA,
+      avatar_b: avatarB,
+      duration,
+      source: "session_end",
+    });
+  }
+
+  if (duration >= SESSION_RITUAL_MS && toInt(session.ritual_awarded, 0) !== 1) {
     ritualComplete = true;
     ritualXp = 75;
+
+    const playerA = avatarA ? await ensurePlayer(avatarA) : null;
+    const playerB = avatarB ? await ensurePlayer(avatarB) : null;
+    if (playerA) await refreshPlayerLifecycle(playerA);
+    if (playerB) await refreshPlayerLifecycle(playerB);
+
+    const xpA = playerA ? toNumber(playerA.session_xp, 0) : 0;
+    const xpB = playerB ? toNumber(playerB.session_xp, 0) : 0;
+
+    const ordered = [avatarA, avatarB].filter(Boolean).sort();
+    const fallbackWinner = ordered[0] || "";
+    let winner = fallbackWinner;
+    let loser = ordered[1] || "";
+    if (xpA > xpB) {
+      winner = avatarA;
+      loser = avatarB;
+    } else if (xpB > xpA) {
+      winner = avatarB;
+      loser = avatarA;
+    }
 
     for (const participant of [avatarA, avatarB].filter(Boolean)) {
       await awardXp(participant, ritualXp, "ritual_complete", {
         session_id: session.session_id,
         duration,
+        winner,
+        loser,
       });
 
       const player = await ensurePlayer(participant);
       await refreshPlayerLifecycle(player);
       player.rituals = toInt(player.rituals, 0) + 1;
       player.rituals_today = toInt(player.rituals_today, 0) + 1;
-      player.pentacles = toNumber(player.pentacles, 0) + 0.01;
+      player.rituals_week = toInt(player.rituals_week, 0) + 1;
+      player.rituals_month = toInt(player.rituals_month, 0) + 1;
+      player.rituals_quarter = toInt(player.rituals_quarter, 0) + 1;
       player.bonds = toInt(player.bonds, 0) + 1;
       player.last_seen = nowMs();
       player.last_action_at = nowMs();
@@ -783,11 +1181,27 @@ async function handleSessionEnd(event) {
       await savePlayer(participant, {
         rituals: player.rituals,
         rituals_today: player.rituals_today,
-        pentacles: player.pentacles,
+        rituals_week: player.rituals_week,
+        rituals_month: player.rituals_month,
+        rituals_quarter: player.rituals_quarter,
         bonds: player.bonds,
         level: player.level,
         last_seen: player.last_seen,
         last_action_at: player.last_action_at,
+      });
+      await bumpChallengeProgress(player);
+      participantPlayers.push(player);
+    }
+
+    // Pentacles via deterministic winner/loser resolution.
+    if (winner && loser) {
+      await awardPentacles(winner, 5, "ritual_winner", { session_id: session.session_id, opponent: loser });
+      await awardPentacles(loser, 2.5, "ritual_loser", { session_id: session.session_id, opponent: winner });
+      await emitWorkerEvent("battle_result", {
+        winner,
+        loser,
+        winner_reward: 5,
+        loser_reward: 2.5,
       });
     }
 
@@ -797,14 +1211,17 @@ async function handleSessionEnd(event) {
     const currentSessions = toNumber(pair.sessions, 0);
     const currentShared = toNumber(pair.shared_xp, 0);
 
-    await redis.hSet(`${PAIR_PREFIX}${session.session_id}`, {
-      pair_key: session.session_id,
-      avatar_a: avatarA,
-      avatar_b: avatarB,
-      shared_xp: String(currentShared + ritualXp * 2),
-      sessions: String(currentSessions + 1),
-      updated_at: String(nowMs()),
-    });
+    await hSetFields(
+      `${PAIR_PREFIX}${session.session_id}`,
+      hashFromObject({
+        pair_key: session.session_id,
+        avatar_a: avatarA,
+        avatar_b: avatarB,
+        shared_xp: String(currentShared + ritualXp * 2),
+        sessions: String(currentSessions + 1),
+        updated_at: String(nowMs()),
+      })
+    );
     await db.updatePair(session.session_id, {
       avatar_a: avatarA,
       avatar_b: avatarB,
@@ -812,7 +1229,14 @@ async function handleSessionEnd(event) {
       sessions: currentSessions + 1,
       updated_at: nowMs(),
     });
+
+    await saveSession(session.session_id, {
+      ritual_awarded: 1,
+      ritual_awarded_at: now,
+    });
   }
+
+  await clearAvatarSessionLinks(session);
 
   await emitWorkerEvent("session_ended", {
     session_id: session.session_id,
@@ -822,6 +1246,7 @@ async function handleSessionEnd(event) {
     ritual_complete: ritualComplete ? 1 : 0,
     ritual_xp: ritualXp,
   });
+  await emitFlowUpdate(session, participantPlayers);
 }
 
 async function handleDripRequest(event) {
@@ -868,6 +1293,149 @@ async function handleDripRequest(event) {
   });
 }
 
+async function handleChallengeClaim(event) {
+  const p = event.payload || {};
+  const avatar = sanitizeAvatar(p.avatar);
+  if (!avatar) return;
+  const tier = String(p.tier || "").toLowerCase();
+  if (!["daily", "weekly", "monthly", "quarterly"].includes(tier)) return;
+
+  const challenge = (await db.getChallenge(avatar)) || {};
+  const claimedKey = `${tier}_claimed`;
+  const claimed = Number(challenge[claimedKey] || 0);
+
+  const player = await ensurePlayer(avatar);
+  await refreshPlayerLifecycle(player);
+  const daily = Math.min(100, Math.round((toInt(player.rituals_today, 0) / CHALLENGE_TARGET_DAILY) * 100));
+  const weekly = Math.min(100, Math.round((toInt(player.rituals_week, 0) / CHALLENGE_TARGET_WEEKLY) * 100));
+  const monthly = Math.min(100, Math.round((toInt(player.rituals_month, 0) / CHALLENGE_TARGET_MONTHLY) * 100));
+  const quarterly = Math.min(100, Math.round((toInt(player.rituals_quarter, 0) / CHALLENGE_TARGET_QUARTERLY) * 100));
+  const progressMap = {
+    daily,
+    weekly,
+    monthly,
+    quarterly,
+  };
+  const progress = progressMap[tier] || 0;
+  if (progress < 100 || claimed > 0) {
+    await emitWorkerEvent("challenge_rejected", { avatar, tier, reason: "not_ready" });
+    return;
+  }
+
+  const now = nowSec();
+  let reward = "xp_boost";
+  if (tier === "daily") reward = "xp_boost";
+  if (tier === "weekly") reward = "ritual_credit";
+  if (tier === "monthly") reward = "pentacle";
+  if (tier === "quarterly") reward = "royal_honey";
+
+  if (reward === "xp_boost") {
+    player.challenge_boost_pct = tier === "daily" ? 10 : tier === "weekly" ? 20 : 35;
+    player.challenge_boost_until = now + 3600;
+  }
+  if (reward === "ritual_credit") {
+    player.rituals = toInt(player.rituals, 0) + 3;
+  }
+  if (reward === "pentacle") {
+    player.pentacles = toNumber(player.pentacles, 0) + 1;
+  }
+  if (reward === "royal_honey") {
+    player.honey = "royal";
+    player.honey_type = "royal";
+    player.honey_stage = 1;
+    player.honey_multiplier = HONEY_MULTIPLIERS.royal;
+    player.honey_expire = now + 45 * 60;
+    player.honey_cooldown = now + 24 * 60 * 60;
+  }
+
+  await savePlayer(avatar, {
+    rituals: player.rituals,
+    pentacles: player.pentacles,
+    honey: player.honey,
+    honey_type: player.honey_type,
+    honey_stage: player.honey_stage,
+    honey_multiplier: player.honey_multiplier,
+    honey_expire: player.honey_expire,
+    honey_cooldown: player.honey_cooldown,
+    challenge_boost_pct: player.challenge_boost_pct,
+    challenge_boost_until: player.challenge_boost_until,
+    last_seen: nowMs(),
+    last_action_at: nowMs(),
+  });
+
+  await db.upsertChallenge(avatar, {
+    daily_progress: daily,
+    weekly_progress: weekly,
+    monthly_progress: monthly,
+    quarterly_progress: quarterly,
+    daily_claimed: tier === "daily" ? 1 : Number(challenge.daily_claimed || 0),
+    weekly_claimed: tier === "weekly" ? 1 : Number(challenge.weekly_claimed || 0),
+    monthly_claimed: tier === "monthly" ? 1 : Number(challenge.monthly_claimed || 0),
+    quarterly_claimed: tier === "quarterly" ? 1 : Number(challenge.quarterly_claimed || 0),
+    updated_at: nowMs(),
+  });
+
+  await emitWorkerEvent("challenge_awarded", {
+    avatar,
+    tier,
+    reward,
+  });
+}
+
+async function handleBattleResolve(event) {
+  const p = event.payload || {};
+  const winner = sanitizeAvatar(p.winner);
+  const loser = sanitizeAvatar(p.loser);
+  if (!winner || !loser || winner === loser) return;
+
+  const winnerReward = 5;
+  const loserReward = 2.5;
+
+  await awardPentacles(winner, winnerReward, "battle_winner", {
+    opponent: loser,
+  });
+  await awardPentacles(loser, loserReward, "battle_loser", {
+    opponent: winner,
+  });
+
+  await emitWorkerEvent("battle_result", {
+    winner,
+    loser,
+    winner_reward: winnerReward,
+    loser_reward: loserReward,
+  });
+}
+
+async function handlePurchase(event) {
+  const p = event.payload || {};
+  const avatar = sanitizeAvatar(p.avatar);
+  if (!avatar) return;
+  const amount = Number(p.amount || 0);
+  const type = String(p.type || "l").toLowerCase();
+  if (amount <= 0) return;
+
+  const player = await ensurePlayer(avatar);
+  await refreshPlayerLifecycle(player);
+
+  if (type === "l") {
+    await db.addTreasury(amount);
+  } else if (type === "pentacle") {
+    player.pentacles = toNumber(player.pentacles, 0) + amount;
+  }
+
+  await savePlayer(avatar, {
+    pentacles: player.pentacles,
+    last_seen: nowMs(),
+    last_action_at: nowMs(),
+  });
+  await emitWorkerEvent("purchase", {
+    avatar,
+    amount,
+    type,
+    pentacles: player.pentacles,
+  });
+}
+
 async function handleHoneyUse(event) {
   const p = event.payload || {};
   const avatar = sanitizeAvatar(p.avatar);
@@ -878,6 +1446,50 @@ async function handleHoneyUse(event) {
 
   const type = String(p.type || p.honey || "dev").trim().toLowerCase();
   const now = nowSec();
+
+  if (type === "inm" || type === "spunked") {
+    const zone = sanitizeZone(p.zone || player.zone);
+    const key = `${SURGE_PENDING_PREFIX}${zone}`;
+    const pendingRaw = await redis.get(key);
+    const pending = safeParseJson(pendingRaw);
+    const nowMsValue = nowMs();
+
+    if (
+      pending &&
+      pending.avatar &&
+      pending.avatar !== avatar &&
+      nowMsValue - toInt(pending.ts, 0) <= SURGE_WINDOW_MS
+    ) {
+      const avatars = [pending.avatar, avatar];
+      await redis.del(key);
+
+      for (const target of avatars) {
+        await savePlayer(target, {
+          surge_charge: 100,
+          surge_ready: 1,
+          last_seen: nowMsValue,
+          last_action_at: nowMsValue,
+        });
+      }
+
+      await emitWorkerEvent("surge", {
+        avatars,
+        type,
+        zone,
+      });
+    } else {
+      await redis.set(key, JSON.stringify({ avatar, ts: nowMsValue }), {
+        PX: SURGE_WINDOW_MS,
+      });
+      await emitWorkerEvent("surge_pending", {
+        avatar,
+        type,
+        zone,
+        window_ms: SURGE_WINDOW_MS,
+      });
+    }
+    return;
+  }
 
   if (type === "dev") {
     const used = toInt(player.dev_uses_today, 0);
@@ -1121,6 +1733,18 @@ async function handleEvent(rawMessage) {
         await handleHoneyUse(event);
         break;
 
+      case "battle_resolve":
+        await handleBattleResolve(event);
+        break;
+
+      case "challenge_claim":
+        await handleChallengeClaim(event);
+        break;
+
+      case "purchase":
+        await handlePurchase(event);
+        break;
+
       case "artifact_spawn":
         await handleArtifactSpawn(event);
         break;
@@ -1139,12 +1763,28 @@ async function handleEvent(rawMessage) {
   }
 }
 
+async function gatherSessionKeys(pattern, count = 200) {
+  const keys = [];
+  let cursor = "0";
+  while (true) {
+    const reply = await redis.scan(cursor, { MATCH: pattern, COUNT: count });
+    const isArrayReply = Array.isArray(reply);
+    const nextCursor = isArrayReply ? reply[0] : reply?.cursor;
+    const batch = isArrayReply ? reply[1] : reply?.keys;
+    if (Array.isArray(batch) && batch.length > 0) {
+      keys.push(...batch);
+    }
+    if (!nextCursor || nextCursor === "0") {
+      break;
+    }
+    cursor = nextCursor;
+  }
+  return keys;
+}
+
 async function cleanupStaleSessions() {
   try {
-    const keys = [];
-    for await (const key of redis.scanIterator({ MATCH: `${SESSION_PREFIX}*`, COUNT: 200 })) {
-      keys.push(key);
-    }
+    const keys = await gatherSessionKeys(`${SESSION_PREFIX}*`, 200);
 
     const now = nowMs();
 
@@ -1162,10 +1802,20 @@ async function cleanupStaleSessions() {
       const startedAt = toInt(hash.started_at, now);
       const duration = Math.max(0, now - startedAt);
 
-      await redis.hSet(key, {
-        active: "0",
-        ended_at: String(now),
-        duration: String(duration),
+      await redis.hSet(
+        key,
+        "active",
+        "0",
+        "ended_at",
+        String(now),
+        "duration",
+        String(duration)
+      );
+
+      await db.saveSession(sessionId, {
+        active: 0,
+        ended_at: now,
+        duration,
       });
 
       const avatarA = String(hash.avatar_a || "");
@@ -1198,6 +1848,30 @@ function scheduleArtifactPrune() {
   }, ARTIFACT_PRUNE_INTERVAL_MS);
 }
 
+function scheduleZonePressure() {
+  setInterval(async () => {
+    try {
+      const sessionKeys = await gatherSessionKeys(`${SESSION_PREFIX}*`, 200);
+      const now = nowMs();
+      for (const key of sessionKeys) {
+        const hash = await redis.hGetAll(key);
+        if (!hash || Object.keys(hash).length === 0) continue;
+        if (toInt(hash.active, 0) !== 1) continue;
+        if (now - toInt(hash.last_tick, now) > SESSION_IDLE_TIMEOUT_MS) continue;
+        const zone = sanitizeZone(hash.zone || "");
+        if (!zone) continue;
+        const participants = [hash.avatar_a, hash.avatar_b].filter(Boolean).length;
+        const pressureDelta = participants * 0.2;
+        const order = String(hash.order || "neutral");
+        const orderMult = deriveOrderMultiplier(order);
+        await applyZonePressureTick(zone, pressureDelta, orderMult, order);
+      }
+    } catch (err) {
+      logger.error({ err, args: err?.args, command: err?.command }, "zone pressure tick failed");
+    }
+  }, ZONE_PRESSURE_TICK_MS);
+}
+
 async function boot() {
   await ensureRedisReady();
   await db.ensureSchema();
@@ -1209,6 +1883,7 @@ async function boot() {
   }, 60_000);
 
   scheduleArtifactPrune();
+  scheduleZonePressure();
 
   logger.info({ redis: REDIS_URL }, "engine worker online");
 }

@@ -64,6 +64,12 @@
 - `/api/honey/use`: 45 min duration, 24 h cooldown, returns updated honey state plus canonical `state`.
 - `GET /api/world`: responds with `players[]`, `pairs[]`, `events[]`, `battle{}`, and `metrics{}` for dashboards.
 
+  The `battle` object surfaces the tug-of-war scoreboard:
+  - `battle.left` and `battle.right` contain `key`, `label`, `glyph`, `accent`, and accumulated `points` for the two orders currently vying for dominance.
+  - `battle.progress` is a 0–100 number showing the left-hand percentage of the ribbon, where the right-hand share is implied.
+  - `battle.unicode` is the Unicode ribbon (`▰`/`▱` segments, glyphs, and pentacle center) that the HUD overlays animate.
+  - `battle.ticker` and `battle.summary` are short gossip strings describing the current push (ticker for the dopamine line, summary for the feed whisper).
+
 ## 3. Redis vs. Database Ownership
 | Layer | Responsibilities |
 | --- | --- |
@@ -76,7 +82,8 @@
 State machine: `IDLE → MATCHED (session start) → ACTIVE → PHASE_15 → PHASE_45 → RESOLUTION → COOLDOWN`
 - Timing verified server-side; no client trust.
 - Duplicate API events are idempotent.
-- `PHASE_15`: +25 XP and log event. `PHASE_45`: +75 XP, increment rituals, apply pentacle reward (winner +5, loser +2.5) via XP comparison or deterministic fallback.
+- `PHASE_15`: +25 XP and log event (once per session).
+- `PHASE_45`: +75 XP, increment rituals, and apply pentacle reward (winner +5, loser +2.5) via XP comparison or deterministic fallback (once per session).
 
 **Object Authority**
 - HUD: UI-only.
@@ -86,10 +93,13 @@ State machine: `IDLE → MATCHED (session start) → ACTIVE → PHASE_15 → PHA
 - Artifact Object: triggers artifact activation.
 
 ## 5. XP Curve (Final)
-**Level formula:** `level = floor((xp / 250) ^ 0.606)`
-- 0–100: rapid ramp.
-- 100–300: compression.
-- 300+: long tail, no hard cap.
+Source of truth: `docs/spec-decision-xp-curve.md`
+
+We use an incremental geometric curve (per-level requirements), tuned so total XP to Level 100 lands around ~1.5M for a 2–3 year target:
+
+- `xp_to_next_level(L) = round(100 * 1.072416^(L-1))` for `L = 1..100`
+- `total_xp_to_reach_level(L) = sum_{i=1..L} xp_to_next_level(i)`
+- `level` is the largest `L` where `xp >= total_xp_to_reach_level(L)`
 
 **XP sources:** solo tick (~5), pair tick (~10–19), ritual 15 (+25), ritual 45 (+75), drip (0.5–3).
 **Multipliers:** honey (Normal 2.0, Dev 5.0, Royal 7.0, Poison 5.0), group 1.15, zone 1.2, bond 1.05, watchers +2% each (max 10%).

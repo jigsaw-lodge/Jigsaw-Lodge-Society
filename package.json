@@ -2,7 +2,8 @@
   "name": "jls-backend",
   "version": "1.0.0",
   "scripts": {
-    "artifact-smoke": "node scripts/test-artifact-spawn.js"
+    "artifact-smoke": "node scripts/test-artifact-spawn.js",
+    "test": "node --test test"
   },
   "dependencies": {
     "dotenv": "^17.4.1",

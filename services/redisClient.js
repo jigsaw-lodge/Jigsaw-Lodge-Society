@@ -1,10 +1,12 @@
 "use strict";
 
+const pino = require("pino");
 const { createClient } = require("redis");
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const REDIS_RETRY_LIMIT = Number(process.env.REDIS_RETRY_LIMIT || 3);
 const BASE_RETRY_DELAY = Number(process.env.REDIS_RETRY_DELAY || 250);
+const redisLogger = pino({ level: "debug" });
 
 function buildSocketOptions() {
   return {
@@ -15,11 +17,40 @@ function buildSocketOptions() {
 }
 
 function createRedisClient(overrides = {}) {
-  return createClient({
+  const client = createClient({
     url: REDIS_URL,
     socket: buildSocketOptions(),
     ...overrides,
   });
+  traceClient(client);
+  const originalDuplicate = client.duplicate;
+  client.duplicate = function (...args) {
+    const dup = originalDuplicate.call(this, ...args);
+    traceClient(dup);
+    return dup;
+  };
+  return client;
+}
+
+function traceClient(client) {
+  if (!client || client.__redisTraced) return;
+  const originalSendCommand = client.sendCommand;
+  client.sendCommand = function (command, ...args) {
+    if (command?.args) {
+      for (let i = 0; i < command.args.length; i += 1) {
+        const arg = command.args[i];
+        if (typeof arg !== "string" && !(arg instanceof Buffer)) {
+          redisLogger.warn(
+            { command: command.args, index: i, type: typeof arg },
+            "redis command contains a non-string argument"
+          );
+          break;
+        }
+      }
+    }
+    return originalSendCommand.call(this, command, ...args);
+  };
+  client.__redisTraced = true;
 }
 
 async function ensureOpen(client) {

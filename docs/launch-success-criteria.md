@@ -33,7 +33,12 @@ This checklist describes the measurable, cross-team goals that must be met befor
 
 ## Runbooks & readiness
 - **Recovery steps:** document how to restart the stack (including `docker-compose down/up`), verify relay/client connectivity, and replay feeds (e.g., the Redis publish helper you already used).  
-- **Postmortem tooling:** provide scripts to collect logs from backend/relay/worker, replay recorded events into `events_channel`, and re-run artifact smoke after incidents.  
+- **Postmortem tooling:** provide scripts to collect logs from backend/relay/worker, replay recorded events into `events_channel`, and re-run artifact smoke after incidents.
 - **Team signoff:** obtain confirmation from infrastructure, ops, gameplay, and security owners that their checklist items (backups, load tests, common tooling) are green before launch.
+
+## Launch Ready Evidence
+- **QA Summary:** Latest `docs/launch-100-checklist.md` entries now cite the GHCR push (row 13), the backend container’s synthetic uptime report (row 10), and the `/api/health`, `/api/worker/heartbeat`, `/health` JSON responses (row 14), so QA has a direct link to the rebuilt artifacts, the monitored uptime, and the relayed health probes. Row 10 now captures the latest monitor/report output (“Health-check uptime report (2026-03-09 to 2026-04-08): api 2/6 success, worker 2/6 success, wsrelay 2/6 success; last seen 2026-04-08T04:08:44Z/45Z, with the persistent 02:40:33Z (exit=56) and 02:09:49Z/01:59:05Z exit=7 failures still recorded”) so the success/failure story stays current.
+- **Go/No-Go:** Every rolling-update probe now reports `ok:1` (the `/api/health`, worker heartbeat, and relay `/health` JSON shown in row 14), and the rebuilt digests (`1b3605a581dc`, `a3a27579ca1e`, `05871a1aaabd`) live in `ghcr.io/jigsaw-lodge/jls-*` (`sha256:60ee4d62251283963e02add847bfc7a9e14f3fbc29009351967bbd75e48aae62`, `sha256:278727aaa8df7f78141d8d7aa6f74564f08bb035459b46bd0a404a2d61c77a1e`, `sha256:9dd2b0f5d71399be228b1dbdca8fccbf518b8938ea9e05174fce017ec8801603`), proving the rollout is holding against the freshest metrics and checklist logs.
+- **Next steps:** Keep rerunning `docker-compose exec backend ./scripts/health-check-monitor.sh` plus `health-check-report.py --days 30 --failures 3` after each rolling update so rows 10/14 always surface the latest uptime proof, continue logging every rollout/alert in `docs/operations-hardening.md#runbooks--signoff`, and update `docs/signoff-tracker.md` once each owner signs off before handing off to ops.
 
 Meeting these criteria means the stack is resilient, observable, secure, and repeatably deployable. Let me know if you want any checklist item turned into tracked tickets, automation scripts, or CI gating so every team can work toward it.  

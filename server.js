@@ -15,6 +15,7 @@ const {
   nowMs,
   safeJsonParse,
 } = require("./services/eventDispatcher");
+const { buildBattleBar } = require("./services/battleBar");
 const { getRequestToken, tokenAllowed, enforceRateLimit } = require("./services/auth");
 const {
   sanitizeAvatar,
@@ -22,6 +23,7 @@ const {
   sanitizeText,
   sanitizeAction,
 } = require("./services/validation");
+const db = require("./services/database");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -58,6 +60,9 @@ if (!ADMIN_TOKEN) {
 const STATIC_ROOT = determineStaticRoot();
 const redis = createRedisClient();
 const redisSub = redis.duplicate();
+
+redis.on("error", (err) => logger.error({ err }, "redis error"));
+redisSub.on("error", (err) => logger.error({ err }, "redis subscriber error"));
 
 const app = express();
 const server = createServer(app);
@@ -110,6 +115,37 @@ function safeEventPayload(body) {
     object_id: sanitizeText(body.object_id || body.object || body.chair || "", ""),
     partner: sanitizeAvatar(body.partner || body.partner_avatar),
     ts: Math.floor(nowMs() / 1000),
+  };
+}
+
+async function loadHudState(avatar) {
+  // SL HUD expects these fields inside { state: { ... } }.
+  // We treat Redis as the real-time truth layer and compute a couple derived fields.
+  const key = `jls:player:${avatar}`;
+  const hash = await redis.hGetAll(key);
+  const xp = Number(hash.xp || 0);
+  const level = Number(hash.level || 0);
+  const rituals = Number(hash.rituals || 0);
+  const bonds = Number(hash.bonds || 0);
+  const watchers = Number(hash.watchers || 0);
+  const pentacles = Number(hash.pentacles || 0);
+  const honey = String(hash.honey || hash.honey_type || "");
+  const honeyExpire = Number(hash.honey_expire || 0);
+  const surgeReady = Number(hash.surge_ready || 0);
+
+  // Canonical-ish derived display (HUD uses a 0-100 bar):
+  const ritualProgress = xp > 0 ? Math.floor(Math.abs(xp) % 100) : 0;
+
+  return {
+    level,
+    rituals,
+    bonds,
+    watchers,
+    pentacles,
+    ritual_progress: ritualProgress,
+    honey,
+    honey_expire: honeyExpire,
+    surge_ready: surgeReady,
   };
 }
 
@@ -200,6 +236,16 @@ function registerRoutes() {
     res.json({ ok: 1, redis: redis.isOpen ? 1 : 0, time: nowMs() });
   });
 
+  app.get("/api/worker/heartbeat", async (_req, res) => {
+    try {
+      await db.query("SELECT 1");
+      res.json({ ok: 1, redis: redis.isOpen ? 1 : 0, time: nowMs() });
+    } catch (err) {
+      logger.warn({ err }, "worker heartbeat failed");
+      res.status(503).json({ ok: 0, error: "db_unreachable" });
+    }
+  });
+
   app.post("/api/event", async (req, res) => {
     const body = req.body || {};
     try {
@@ -212,7 +258,10 @@ function registerRoutes() {
         return res.status(429).json({ error: "rate_limited" });
       }
       await publishApiEvent(action, body);
-      return res.json({ ok: true, queued: true, action });
+      // Back-compat for SL HUD: return a {state:{...}} object immediately.
+      // This reflects the latest Redis snapshot, not necessarily the post-event result.
+      const state = await loadHudState(avatar);
+      return res.json({ ok: true, queued: true, action, state });
     } catch (err) {
       logger.error({ err }, "event request failed");
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -331,6 +380,94 @@ function registerRoutes() {
     }
   });
 
+  app.get("/api/challenges", async (req, res) => {
+    try {
+      const avatar = sanitizeAvatar(req.query.avatar || "");
+      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
+      const data = await db.getChallenge(avatar);
+      return res.json({ ok: true, challenge: data || {} });
+    } catch (err) {
+      logger.error({ err }, "challenge fetch failed");
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/zone", async (req, res) => {
+    try {
+      const zone = sanitizeZone(req.query.zone || "");
+      if (!zone) return res.status(400).json({ error: "invalid_zone" });
+      const data = await db.getZone(zone);
+      return res.json({ ok: true, zone: data || { zone_id: zone, pressure: 0 } });
+    } catch (err) {
+      logger.error({ err }, "zone fetch failed");
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/challenges/claim", async (req, res) => {
+    const body = req.body || {};
+    try {
+      validateApiToken(req, body);
+      const avatar = sanitizeAvatar(body.avatar);
+      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
+      const tier = String(body.tier || "").toLowerCase();
+      if (!["daily", "weekly", "monthly", "quarterly"].includes(tier)) {
+        return res.status(400).json({ error: "invalid_tier" });
+      }
+      if (!(await enforceRateLimit(redis, avatar, "challenge_claim"))) {
+        return res.status(429).json({ error: "rate_limited" });
+      }
+      await publishApiEvent("challenge_claim", body);
+      return res.json({ ok: true, queued: true });
+    } catch (err) {
+      logger.error({ err }, "challenge claim failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/battle/resolve", async (req, res) => {
+    const body = req.body || {};
+    try {
+      validateApiToken(req, body);
+      const winner = sanitizeAvatar(body.winner);
+      const loser = sanitizeAvatar(body.loser);
+      if (!winner || !loser || winner === loser) {
+        return res.status(400).json({ error: "invalid_battle" });
+      }
+      if (!(await enforceRateLimit(redis, winner, "battle_resolve"))) {
+        return res.status(429).json({ error: "rate_limited" });
+      }
+      await publishApiEvent("battle_resolve", body);
+      return res.json({ ok: true, queued: true });
+    } catch (err) {
+      logger.error({ err }, "battle resolve failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/purchase", async (req, res) => {
+    const body = req.body || {};
+    try {
+      validateApiToken(req, body);
+      const avatar = sanitizeAvatar(body.avatar);
+      if (!avatar) return res.status(400).json({ error: "invalid_avatar" });
+      const amount = Number(body.amount || 0);
+      const type = String(body.type || "l").toLowerCase();
+      if (amount <= 0) return res.status(400).json({ error: "invalid_amount" });
+      if (!(await enforceRateLimit(redis, avatar, "purchase"))) {
+        return res.status(429).json({ error: "rate_limited" });
+      }
+      await publishApiEvent("purchase", { avatar, amount, type }, { source: "purchase" });
+      return res.json({ ok: true, queued: true });
+    } catch (err) {
+      logger.error({ err }, "purchase failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/admin/artifact/spawn", async (req, res) => {
     const body = req.body || {};
     try {
@@ -376,8 +513,23 @@ function registerRoutes() {
 
   app.get("/api/world", async (_req, res) => {
     try {
-      const events = (await redis.lRange(EVENT_LIST_KEY, 0, 24)).map((raw) => safeJsonParse(raw)).filter(Boolean);
-      return res.json({ world: { events } });
+      const events = (await redis.lRange(EVENT_LIST_KEY, 0, 24))
+        .map((raw) => safeJsonParse(raw))
+        .filter(Boolean);
+      const battle = await buildBattleBar(redis, events);
+      const players = await db.listPlayers(25);
+      const pairs = await db.listPairs(25);
+      const sessions = await db.listActiveSessions(25);
+      const activeSessions = await db.countActiveSessions();
+      const activePlayers5m = await db.countActivePlayersSince(nowMs() - 5 * 60 * 1000);
+      const treasuryTotal = await db.getTreasuryTotal();
+      const metrics = {
+        active_sessions: activeSessions,
+        active_players_5m: activePlayers5m,
+        treasury_total_l: Number(treasuryTotal) || 0,
+      };
+
+      return res.json({ world: { events, battle, players, pairs, sessions, metrics } });
     } catch (err) {
       logger.error({ err }, "world snapshot failed");
       return res.status(500).json({ error: "server_error" });
@@ -455,6 +607,7 @@ function setupWebSocketHeartbeat(serverInstance) {
 
 async function start() {
   registerRoutes();
+  await db.ensureSchema();
   await connectWithRetry(redis, "primary", logger);
   await connectWithRetry(redisSub, "subscriber", logger);
   await bridgeEventsToWebSockets();
