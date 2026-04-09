@@ -1,8 +1,8 @@
 Hasan Context Pack
-UTC: 2026-04-09T20:56:56Z
+UTC: 2026-04-09T21:16:44Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 18]
-Latest commit: d4246b1 Harden runtime secrets and startup validation
+Branch: ## main...origin/main [ahead 21]
+Latest commit: 8673c9a Add plain-English security review
 Working tree: 2 changed path(s)
 
 Model mix:
@@ -13,15 +13,15 @@ Model mix:
 
 Now:
   - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-  - `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
-  - `TODO` Task 89: Add the plain-English security review doc now that secrets, signing, and audit behavior are much clearer.
+  - `TODO` Task 95: Build the go/no-go dashboard/checklist from the health, smoke, alert, and release-gate evidence we now have.
+  - `TODO` Task 63: Make the frontend display current health, latest feed, and battle state reliably.
 
 Next:
+  - `TODO` Task 68: Add a clear frontend "connection lost / reconnecting" state for relay interruptions.
+  - `TODO` Task 70: Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
+  - `TODO` Task 93-94: Run and archive the current-build load and pub/sub proof sweep.
   - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
   - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
-  - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
-  - `TODO` Add a small “release note” habit: record evidence for each sprint.
-  - `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
 
 Blocked:
   - `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
@@ -37,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
-  - d4246b1 Harden runtime secrets and startup validation
-  - 8c9a6ff Refresh archive after recovery tooling slice
-  - 8e1b2ea Add recovery drill and incident readiness tooling
+  - 8673c9a Add plain-English security review
+  - 2b1ee14 Add alert rules and weekly release gate
+  - 0eba422 Refresh archive after secrets hardening
 
 Key files:
   - docs/sprint.md
