@@ -6,7 +6,7 @@ const SEGMENT_COUNT = 14;
 const ORDER_META = {
   architect: {
     key: "architect",
-    label: "Architect Order",
+    label: "Order of the Architects",
     glyph: "✺",
     accent: "#6cffd2",
     roar: "Pentacle tide",
@@ -20,7 +20,7 @@ const ORDER_META = {
   },
   black_sun: {
     key: "black_sun",
-    label: "Black Sun",
+    label: "Order of the Black Sun",
     glyph: "☥",
     accent: "#ff3df0",
     roar: "Velvet surge",

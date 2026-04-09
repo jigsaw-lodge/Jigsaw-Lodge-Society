@@ -17,9 +17,9 @@
 ## Order Kiosk
 - Present the four canonical orders (`architect`, `eye`, `black_sun`, `neutral`) in a static menu; selecting an order sends the `order` string through the HUD so the backend can stamp the authoritative `order` field.
 - Render the public names clearly in the kiosk copy:
-  - `architect` -> `Architect Order`
+  - `architect` -> `Order of the Architects`
   - `eye` -> `Order of the Illuminated Eye`
-  - `black_sun` -> `Black Sun`
+  - `black_sun` -> `Order of the Black Sun`
   - `neutral` -> `Neutral Tide`
 - Include a `Choose Order` button that links to HUD settings, but forbid any client-side creation of new order IDs—the backend remains the single source of truth for `order` strings.
 - Document the `order` change confirmation flow so HUD feedback (color changes, HUD halos) matches the spec’s visibility-of-power goals.

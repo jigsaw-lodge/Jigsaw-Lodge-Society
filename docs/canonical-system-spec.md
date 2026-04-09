@@ -28,9 +28,9 @@
 > **Authority rule:** the backend owns every field. LSL scripts are pure I/O.
 
 > **Order naming rule:** keep the wire/storage keys short and stable. Public-facing names can be richer:
-> - `architect` → `Architect Order`
+> - `architect` → `Order of the Architects`
 > - `eye` → `Order of the Illuminated Eye`
-> - `black_sun` → `Black Sun`
+> - `black_sun` → `Order of the Black Sun`
 > - `neutral` → `Neutral Tide`
 
 ## 2. Backend Contracts (Locked API)

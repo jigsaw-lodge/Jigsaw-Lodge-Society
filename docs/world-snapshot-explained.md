@@ -75,7 +75,7 @@ Use this for:
 
 Naming reminder:
 - `key` stays machine-stable (`architect`, `eye`, `black_sun`, `neutral`)
-- `label` is the human-facing name from the backend, so `eye` may display as `Order of the Illuminated Eye`
+- `label` is the human-facing name from the backend, so these may appear as `Order of the Architects`, `Order of the Illuminated Eye`, or `Order of the Black Sun`
 
 ### `world.players`
 

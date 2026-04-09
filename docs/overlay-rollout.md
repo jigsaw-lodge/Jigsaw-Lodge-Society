@@ -7,7 +7,7 @@ This is the quick reference for the Second Life overlay/cinematic teams so the H
   - `left` / `right`: `key`, `label`, `glyph`, `accent`, `points` for each order pushing the ribbon.
   - `progress`: 0‑100 percent (left-hand share) so you can place gradients/tappers.
   - `unicode`: the `▰/▱` ribbon with glyphs and the `◇ ◈ ◇` center that should drive the HUD battle ticker text (no art assets required).
-  - `ticker`: short dopamine copy (`Architect Order 12 vs Black Sun 8 · Pentacle tide`) for the feed/ticker.
+  - `ticker`: short dopamine copy (`Order of the Architects 12 vs Order of the Black Sun 8 · Pentacle tide`) for the feed/ticker.
   - `summary`: whispered gossip line describing the latest push.
 
 Overlay teams should poll `/api/world` every ~18 seconds (or honor the `battle:refresh` custom event emitted in the front-end via `window.dispatchEvent(new CustomEvent("battle:refresh", { detail: { left, right, progress, ticker } }))`). Use the glyphs/accents directly rather than inventing new art to keep the tug-of-war language identical to the web HUD.
