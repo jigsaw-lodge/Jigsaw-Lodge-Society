@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body
-    data-base-url="https://www.jigsawlodgesociety.com/api"
+    data-base-url="https://api.jigsawlodgesociety.com/api"
     data-ws-url="wss://ws.jigsawlodgesociety.com"
     data-shared-token=""
   >
@@ -44,9 +44,39 @@
         <input id="partnerId" placeholder="Partner UUID (ritual)" />
         <button id="connectBtn" type="button">Anchor Identity</button>
       </form>
+      <p class="observer-note">
+        Public observer mode is live. Ritual actions require a private token, but the world feed, battle state,
+        artifacts, and system status should always be visible here.
+      </p>
     </section>
 
     <main class="grid">
+      <section class="panel status-panel">
+        <h3>WORLD SNAPSHOT</h3>
+        <div class="status-grid">
+          <article class="metric-card">
+            <span>API</span>
+            <strong id="siteStatus">Checking</strong>
+          </article>
+          <article class="metric-card">
+            <span>Snapshot</span>
+            <strong id="snapshotTime">--</strong>
+          </article>
+          <article class="metric-card">
+            <span>Active Sessions</span>
+            <strong id="activeSessionsMetric">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Players 5m</span>
+            <strong id="activePlayersMetric">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Treasury</span>
+            <strong id="treasuryMetric">0</strong>
+          </article>
+        </div>
+      </section>
+
       <section class="panel hud-panel">
         <header class="hud-header">
           <div>
@@ -140,6 +170,13 @@
         </div>
         <div class="battle-ticker" id="battleTicker">Ticker will surface the dopamine pull.</div>
         <p class="battle-summary" id="battleSummary">Election whisper quiet for now.</p>
+      </section>
+
+      <section class="panel artifact-panel">
+        <h3>ACTIVE ARTIFACTS</h3>
+        <div id="artifactsList" class="artifact-list">
+          <p class="artifact-empty">No active artifacts in the ledger yet.</p>
+        </div>
       </section>
 
       <section class="panel directives">

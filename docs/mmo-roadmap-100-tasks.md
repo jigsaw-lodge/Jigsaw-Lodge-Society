@@ -56,11 +56,11 @@ The goal is not to finish everything at once. The goal is to always know the nex
 30. `TODO` Write a “player progression explained” doc in plain language for design decisions.
 
 ## Phase 4 - Rituals, Sessions, And Core Loop
-31. `TODO` Make session start persist cleanly in Redis and Postgres every time.
-32. `TODO` Enforce the 15-minute and 45-minute ritual milestone logic exactly once.
+31. `DONE` Make session start persist cleanly in Redis and Postgres every time.
+32. `DONE` Enforce the 15-minute and 45-minute ritual milestone logic exactly once.
 33. `DONE` Prevent duplicate ritual rewards when the same session is retried or replayed (session end is idempotent).
 34. `TODO` Add a deterministic winner/loser fallback for battle or ritual resolution edge cases.
-35. `DOING` Add tests that simulate session start, tick, timeout, and normal end (idempotent session end + timeout coverage added; phase-15 coverage still pending).
+35. `DONE` Add tests that simulate session start, tick, timeout, and normal end.
 36. `DONE` Verify session cleanup removes stale Redis keys and avatar-session links.
 37. `TODO` Add clear feed events for ritual start, phase milestone, timeout, and completion.
 38. `TODO` Make drip rewards require the correct ritual prerequisite from the spec.
@@ -80,16 +80,16 @@ The goal is not to finish everything at once. The goal is to always know the nex
 50. `TODO` Create one admin report that shows honey use, pentacle flow, and treasury totals.
 
 ## Phase 6 - World State, Battles, Zones, And Artifacts
-51. `DOING` Finish the `world` snapshot so it includes players, pairs, events, battle, and metrics as promised.
+51. `DOING` Finish the `world` snapshot so it includes players, pairs, events, battle, metrics, and active artifacts as promised.
 52. `DONE` Make battle bar data always return a valid object instead of `null`.
 53. `TODO` Verify zone pressure decay and flip logic match the design spec.
 54. `TODO` Add tests for zone flips and battle resolution.
 55. `TODO` Ensure artifact spawn, registration, expiry, and active-state lookup are all consistent.
 56. `TODO` Add artifact prune verification so expired artifacts stop affecting gameplay.
-57. `TODO` Surface active artifacts in `/api/world` for the frontend and HUD.
+57. `DONE` Surface active artifacts in `/api/world` for the frontend and HUD.
 58. `TODO` Add admin tools for listing, expiring, and inspecting artifacts.
 59. `TODO` Create a simple artifact balancing table in docs for future content design.
-60. `TODO` Write one “world snapshot explained” doc that tells you what each field is for.
+60. `DONE` Write one “world snapshot explained” doc that tells you what each field is for.
 
 ## Phase 7 - Relay, HUD, Frontend, And Web UX
 61. `TODO` Verify the relay sends both raw events and user-facing feed envelopes for every major event type.

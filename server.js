@@ -600,6 +600,7 @@ function registerRoutes() {
       const players = await db.listPlayers(25);
       const pairs = await db.listPairs(25);
       const sessions = await db.listActiveSessions(25);
+      const artifacts = await db.getActiveArtifacts();
       const activeSessions = await db.countActiveSessions();
       const activePlayers5m = await db.countActivePlayersSince(nowMs() - 5 * 60 * 1000);
       const treasuryTotal = await db.getTreasuryTotal();
@@ -618,6 +619,7 @@ function registerRoutes() {
           players,
           pairs,
           sessions,
+          artifacts,
           metrics,
         },
       });

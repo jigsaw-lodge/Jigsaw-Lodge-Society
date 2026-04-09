@@ -81,6 +81,12 @@ const battleLeftPointsEl = document.getElementById("battleLeftPoints");
 const battleRightNameEl = document.getElementById("battleRightName");
 const battleRightPointsEl = document.getElementById("battleRightPoints");
 const battlePanelEl = document.getElementById("battleView");
+const siteStatusEl = document.getElementById("siteStatus");
+const snapshotTimeEl = document.getElementById("snapshotTime");
+const activeSessionsMetricEl = document.getElementById("activeSessionsMetric");
+const activePlayersMetricEl = document.getElementById("activePlayersMetric");
+const treasuryMetricEl = document.getElementById("treasuryMetric");
+const artifactsListEl = document.getElementById("artifactsList");
 
 function refreshFlowHighlights(value = state.ritualProgress) {
   if (!flowListItems?.length) return;
@@ -177,14 +183,81 @@ function renderBattleBar(battle) {
   );
 }
 
-async function fetchWorldBattle() {
+function formatSnapshotTime(value) {
+  if (!value) return "--";
+  const date = new Date(Number(value));
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function renderWorldMetrics(world = {}) {
+  const metrics = world.metrics || {};
+  if (snapshotTimeEl) snapshotTimeEl.textContent = formatSnapshotTime(world.generated_at);
+  if (activeSessionsMetricEl) activeSessionsMetricEl.textContent = String(metrics.active_sessions ?? 0);
+  if (activePlayersMetricEl) activePlayersMetricEl.textContent = String(metrics.active_players_5m ?? 0);
+  if (treasuryMetricEl) treasuryMetricEl.textContent = String(metrics.treasury_total_l ?? 0);
+}
+
+function renderArtifacts(artifacts = []) {
+  if (!artifactsListEl) return;
+  artifactsListEl.innerHTML = "";
+
+  if (!Array.isArray(artifacts) || artifacts.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "artifact-empty";
+    empty.textContent = "No active artifacts in the ledger yet.";
+    artifactsListEl.appendChild(empty);
+    return;
+  }
+
+  artifacts.slice(0, 8).forEach((artifact) => {
+    const row = document.createElement("article");
+    row.className = "artifact-item";
+    const expiresAt = artifact.expires_at
+      ? new Date(Number(artifact.expires_at) * 1000).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "--";
+    row.innerHTML = `
+      <div>
+        <strong>${artifact.type || artifact.artifact_id}</strong>
+        <small>${artifact.effect_type || "unknown effect"} • power ${artifact.power_level ?? 0}</small>
+      </div>
+      <div class="artifact-meta">
+        <span>${artifact.location || "unplaced"}</span>
+        <span>exp ${expiresAt}</span>
+      </div>
+    `;
+    artifactsListEl.appendChild(row);
+  });
+}
+
+async function fetchWorldSnapshot() {
   try {
     const resp = await fetch(`${baseUrl}/world`, { cache: "no-store" });
     if (!resp.ok) throw new Error(`status ${resp.status}`);
     const payload = await resp.json().catch(() => ({}));
-    renderBattleBar(payload?.world?.battle);
+    const world = payload?.world || {};
+    renderBattleBar(world.battle);
+    renderWorldMetrics(world);
+    renderArtifacts(world.artifacts);
+    if (siteStatusEl) {
+      siteStatusEl.textContent = "Live";
+      siteStatusEl.classList.remove("status-bad");
+      siteStatusEl.classList.add("status-good");
+    }
   } catch (err) {
-    console.warn("battle refresh failed", err);
+    if (siteStatusEl) {
+      siteStatusEl.textContent = "Delayed";
+      siteStatusEl.classList.remove("status-good");
+      siteStatusEl.classList.add("status-bad");
+    }
+    console.warn("world snapshot refresh failed", err);
   }
 }
 
@@ -487,7 +560,7 @@ function connectRelay() {
       addFeed({ message: `▵ raw: ${data}`, theme: themes.gossip });
     }
     if ((parsed?.type || payload?.type) === "battle_result") {
-      fetchWorldBattle();
+      fetchWorldSnapshot();
     }
     if (Math.random() > 0.95) {
       reveal();
@@ -518,7 +591,7 @@ function connectIdentity() {
     return;
   }
   if (!state.token) {
-    addGossip("Backend token is missing; contact the ritual admin.", themes.gossip);
+    addGossip("Observer mode is active. A private token is still required for ritual actions.", themes.gossip);
     return;
   }
   state.avatar = avatar;
@@ -611,11 +684,21 @@ async function checkHealth() {
         : `▵ API error ${resp.status}`,
       theme: resp.ok ? themes.exchange : themes.gossip,
     });
+    if (siteStatusEl) {
+      siteStatusEl.textContent = resp.ok ? "Healthy" : `API ${resp.status}`;
+      siteStatusEl.classList.toggle("status-good", resp.ok);
+      siteStatusEl.classList.toggle("status-bad", !resp.ok);
+    }
   } catch (err) {
     addFeed({
       message: `▵ API unreachable: ${err.message}`,
       theme: themes.gossip,
     });
+    if (siteStatusEl) {
+      siteStatusEl.textContent = "Offline";
+      siteStatusEl.classList.remove("status-good");
+      siteStatusEl.classList.add("status-bad");
+    }
   }
 }
 
@@ -638,8 +721,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(updateTickCTA, 1000);
   updateTickCTA();
   addFeed({ message: "▵ System synced", theme: themes.matrix });
-  fetchWorldBattle();
-  setInterval(fetchWorldBattle, BATTLE_REFRESH_MS);
+  fetchWorldSnapshot();
+  setInterval(fetchWorldSnapshot, BATTLE_REFRESH_MS);
   setInterval(() => {
     const gossip = [
       "Eyes wide shut circle whispering about the next ritual.",
