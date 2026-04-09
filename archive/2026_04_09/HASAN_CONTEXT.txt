@@ -1,8 +1,8 @@
 Hasan Context Pack
-UTC: 2026-04-09T20:20:30Z
+UTC: 2026-04-09T20:36:48Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 14]
-Latest commit: 6d97527 Add structured audit logs for live support flows
+Branch: ## main...origin/main [ahead 16]
+Latest commit: 8e1b2ea Add recovery drill and incident readiness tooling
 Working tree: 2 changed path(s)
 
 Model mix:
@@ -13,8 +13,8 @@ Model mix:
 
 Now:
   - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-  - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
   - `TODO` Task 81-82: Move secrets into a proper store and fail fast with beginner-friendly startup errors when required secrets are missing.
+  - `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
 
 Next:
   - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -37,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - 8e1b2ea Add recovery drill and incident readiness tooling
+  - bd42140 Refresh archive after structured logging slice
   - 6d97527 Add structured audit logs for live support flows
-  - 4156a44 Refresh archive after SL HUD audit slice
-  - 0a494cc Audit SL HUD contract and add minimal testing HUD
 
 Key files:
   - docs/sprint.md
