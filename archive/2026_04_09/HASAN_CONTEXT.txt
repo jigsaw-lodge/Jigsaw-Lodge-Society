@@ -1,9 +1,9 @@
 Hasan Context Pack
-UTC: 2026-04-09T19:50:04Z
+UTC: 2026-04-09T19:51:54Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 7]
-Latest commit: 06ba2fb Verify relay envelopes and add Hasan worker packs
-Working tree: 18 changed path(s)
+Branch: ## main...origin/main [ahead 8]
+Latest commit: c115900 Add SL request signing and furniture bridge
+Working tree: 3 changed path(s)
 
 Model mix:
   - Hasan coordinator: stronger model for planning, risk calls, and final decisions
@@ -19,6 +19,7 @@ Now:
 Next:
   - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
   - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
+  - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
   - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
   - `TODO` Add a small “release note” habit: record evidence for each sprint.
   - `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
@@ -37,9 +38,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - c115900 Add SL request signing and furniture bridge
   - 06ba2fb Verify relay envelopes and add Hasan worker packs
   - 59eeaaa Harden session truth and install Hasan context pack
-  - 8ac19db Finish artifact lifecycle verification and clean test state
 
 Key files:
   - docs/sprint.md

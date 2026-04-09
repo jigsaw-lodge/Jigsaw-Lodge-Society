@@ -164,6 +164,7 @@ If you want the smartest immediate sequence, do these next:
 ## Readiness rule discovered during Second Life signing work
 - Signed SL requests should carry `timestamp`, `request_id`, and `signature`, and the backend should reject stale or replayed requests before they hit gameplay logic.
 - Legacy furniture can still use `/api/event` with `sit`, `ritual_tick`, `stand`, or `unsit`, but the target architecture is signed requests against the session endpoints.
+- Production activation is a deployment step: set `JLS_SIGNING_SECRET`, update the SL objects, then turn on `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 
 ## How to ask ChatGPT for help
 - Good: `Help me finish Task 31. Here is the file and the bug.`

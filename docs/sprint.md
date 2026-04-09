@@ -10,6 +10,7 @@ This is the single page to look at every day.
 ## Next (max 5)
 - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
+- `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Add a small “release note” habit: record evidence for each sprint.
 - `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
@@ -51,6 +52,6 @@ This is the single page to look at every day.
 - `DONE` Task 61: relay feed envelopes are now verified for artifact, honey, battle, session start, phase-15, timeout, and completed ritual events.
 - `DONE` Task 62: added relay integration coverage for connect, subscribe, ping/pong, disconnect, reconnect, raw event delivery, feed delivery, and parcel events (`test/relay.test.js`).
 - `DONE` Mixed-model workflow locked in: Hasan stays on the stronger model, and mini-worker handoffs now use `scripts/hasan-worker-pack.sh`.
-- `DONE` Task 73: signed SL request support is now implemented with `timestamp`, `request_id`, `signature`, replay protection, stale-request rejection, and a rollout doc (`docs/sl-request-signing.md`).
+- `DONE` Task 73: signed SL request support is now implemented with `timestamp`, `request_id`, `signature`, replay protection, stale-request rejection, and a rollout doc (`docs/sl-request-signing.md`); live prod activation still needs `JLS_SIGNING_SECRET` set in deploy env.
 - `DONE` Task 74: legacy furniture `sit` / `unsit` / `ritual_tick` actions now bridge into the authoritative session engine, and signed furniture/session compatibility is proven by `test/request-signing.test.js`.
 - `DONE` Nano lane added to Hasan's worker system for tiny utility passes via `scripts/hasan-worker-pack.sh --mode nano`.
