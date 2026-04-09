@@ -7,6 +7,7 @@ set -euo pipefail
 #   env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
 # Optional:
 #   RUN_LOAD=1 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
+#   RUN_RESTORE_DRILL=1 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
 #   FORCE_BUILD=1 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -48,6 +49,19 @@ if [[ "${RUN_LOAD:-}" == "1" ]]; then
 else
   echo
   echo "Load test skipped (set RUN_LOAD=1 to run it)."
+fi
+
+if [[ "${RUN_RESTORE_DRILL:-}" == "1" ]]; then
+  echo
+  echo "Backups..."
+  REDIS_PORT="${REDIS_PORT:-6380}" bash "$ROOT_DIR/scripts/backup-datastores.sh"
+
+  echo
+  echo "Restore drill..."
+  bash "$ROOT_DIR/scripts/restore-drill.sh"
+else
+  echo
+  echo "Restore drill skipped (set RUN_RESTORE_DRILL=1 to run it)."
 fi
 
 echo

@@ -37,7 +37,7 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Team signoff:** obtain confirmation from infrastructure, ops, gameplay, and security owners that their checklist items (backups, load tests, common tooling) are green before launch.
 
 ## Launch Ready Evidence
-- **QA Summary:** the current source of truth is `docs/launch-100-checklist.md`, which now records only `Verified (date)` or `Needs Re-Verify` rows. On 2026-04-09, API health, worker heartbeat, relay health, artifact smoke, and the full backend suite (`30/30`) were freshly verified on the current build.
+- **QA Summary:** the current source of truth is `docs/launch-100-checklist.md`, which now records only `Verified (date)` or `Needs Re-Verify` rows. On 2026-04-09, API health, worker heartbeat, relay health, artifact smoke, the full backend suite (`30/30`), and a fresh backup + restore drill were verified on the current build.
 - **Go/No-Go:** current call is `NO-GO` until the remaining `Needs Re-Verify` launch rows are refreshed and one full Second Life end-to-end pass is recorded.
 - **Next steps:** use the checklist to drive the next proof sweep: rerun scaling and restart evidence on the current build, complete the SL end-to-end capture, and move signed SL traffic from implemented-in-code to fully deployed in production.
 

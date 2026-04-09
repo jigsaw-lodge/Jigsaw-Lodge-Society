@@ -31,6 +31,9 @@ jobs:
       - name: Run datastore backup
         run: ./scripts/backup-datastores.sh
 
+      - name: Run restore drill on fresh backups
+        run: ./scripts/restore-drill.sh
+
       - name: Upload backup artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

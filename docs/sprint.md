@@ -4,8 +4,8 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
 - `TODO` Task 81-82: Move secrets into a proper store and fail fast with beginner-friendly startup errors when required secrets are missing.
+- `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
 
 ## Next (max 5)
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -60,4 +60,7 @@ This is the single page to look at every day.
 - `DONE` Task 71: checked-in LSL HUD contract audit recorded in `docs/sl-contract-audit-2026-04-09.md`, with an honest scope note for the missing non-HUD object source files.
 - `DONE` Task 72: added the minimal I/O-only reference HUD (`lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`) with shared-token and signed-request modes; it is source-reviewed but not yet compile-tested in-world.
 - `DONE` Task 86: backend and worker now emit structured JSON logs for admin actions, purchases, artifact lifecycle, and session failures via `services/structuredLogging.js`, verified by `30/30` tests plus live container log tails.
+- `DONE` Task 83: automated datastore backups now write checksum manifests, use a version-matched Postgres dump path for the live stack, and are wired into restore verification via `.github/workflows/datastore-backup.yml`.
+- `DONE` Task 84: one-command restore drill added in `scripts/restore-drill.sh` and verified on the live host against fresh April 9 backups (latest summary in `backups/restore-drill-*.txt`).
+- `DONE` Task 85: founder-safe incident checklist added in `docs/incident-checklist.md` for backend down, relay down, Redis down, and DB drift.
 - `DONE` Task 96: launch checklist rewritten so statuses are `Verified (date)` or `Needs Re-Verify`, with fresh April 9 evidence recorded in `docs/launch-100-checklist.md`.

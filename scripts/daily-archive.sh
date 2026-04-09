@@ -39,6 +39,25 @@ touch \
   echo
 } >> "$OUT_DIR/SYSTEM_STATUS.txt"
 
+LATEST_BACKUP_MANIFEST=$(find "$ROOT_DIR/backups" -maxdepth 1 -type f -name 'backup-manifest-*.txt' | sort | tail -n 1 || true)
+LATEST_RESTORE_SUMMARY=$(find "$ROOT_DIR/backups" -maxdepth 1 -type f -name 'restore-drill-*.txt' | sort | tail -n 1 || true)
+
+if [[ -n "$LATEST_BACKUP_MANIFEST" && -f "$LATEST_BACKUP_MANIFEST" ]]; then
+  {
+    echo "Latest backup manifest:"
+    sed -n '1,40p' "$LATEST_BACKUP_MANIFEST"
+    echo
+  } >> "$OUT_DIR/SYSTEM_STATUS.txt"
+fi
+
+if [[ -n "$LATEST_RESTORE_SUMMARY" && -f "$LATEST_RESTORE_SUMMARY" ]]; then
+  {
+    echo "Latest restore drill summary:"
+    sed -n '1,40p' "$LATEST_RESTORE_SUMMARY"
+    echo
+  } >> "$OUT_DIR/SYSTEM_STATUS.txt"
+fi
+
 if [[ -f "$ROOT_DIR/scripts/hasan-context-pack.sh" ]]; then
   bash "$ROOT_DIR/scripts/hasan-context-pack.sh" --write "$OUT_DIR/HASAN_CONTEXT.txt" >/dev/null
 fi

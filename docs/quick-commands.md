@@ -38,6 +38,16 @@ API tests:
 bash scripts/test.sh
 ```
 
+Create fresh datastore backups on the production-style host ports:
+```sh
+REDIS_PORT=6380 bash scripts/backup-datastores.sh
+```
+
+Run the one-command restore drill against the latest backups:
+```sh
+bash scripts/restore-drill.sh
+```
+
 Load test (k6 via compose):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/load.sh
@@ -46,6 +56,11 @@ env ADMIN_TOKEN=testtoken bash scripts/load.sh
 Hasan daily loop (health -> tests -> smoke -> optional load -> archive):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
+```
+
+Hasan daily loop with backup + restore proof:
+```sh
+RUN_RESTORE_DRILL=1 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
 ```
 
 Show current "Now/Next" from sprint board:
