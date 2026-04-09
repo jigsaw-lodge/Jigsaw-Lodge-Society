@@ -73,6 +73,10 @@ Use this for:
 - SL HUD ribbon
 - world feed boards
 
+Naming reminder:
+- `key` stays machine-stable (`architect`, `eye`, `black_sun`, `neutral`)
+- `label` is the human-facing name from the backend, so `eye` may display as `Order of the Illuminated Eye`
+
 ### `world.players`
 
 Recent players ordered by `last_seen`.

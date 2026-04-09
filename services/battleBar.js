@@ -13,10 +13,10 @@ const ORDER_META = {
   },
   eye: {
     key: "eye",
-    label: "Eye Order",
+    label: "Order of the Illuminated Eye",
     glyph: "⚛",
     accent: "#ffa5e3",
-    roar: "Matrix pulse",
+    roar: "Illuminated pulse",
   },
   black_sun: {
     key: "black_sun",

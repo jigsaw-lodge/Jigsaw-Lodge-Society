@@ -13,7 +13,7 @@
 | `bonds` | `integer` | Total bond count |
 | `bonded_partners` | `string[]` | Partner IDs |
 | `watchers` | `integer` | Clamped 0–5 |
-| `order` | `string` | `architect`, `eye`, `black_sun`, `neutral` |
+| `order` | `string` | Internal keys: `architect`, `eye`, `black_sun`, `neutral` |
 | `honey_type` | `string` | `""`, `dev`, `royal`, `poison` |
 | `honey_expire` | `unix` | Expiry timestamp |
 | `honey_cooldown` | `unix` | Next available use |
@@ -26,6 +26,12 @@
 | `last_zone` | `integer` | Zone identifier |
 
 > **Authority rule:** the backend owns every field. LSL scripts are pure I/O.
+
+> **Order naming rule:** keep the wire/storage keys short and stable. Public-facing names can be richer:
+> - `architect` → `Architect Order`
+> - `eye` → `Order of the Illuminated Eye`
+> - `black_sun` → `Black Sun`
+> - `neutral` → `Neutral Tide`
 
 ## 2. Backend Contracts (Locked API)
 **Base expectations per request:** `avatar_id`, an action-specific payload, optional `object_id`, and a `timestamp`/`request_id` for deduplication.

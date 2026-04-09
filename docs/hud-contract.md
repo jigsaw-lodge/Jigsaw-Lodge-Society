@@ -125,6 +125,7 @@ Request JSON:
 Notes:
 - `order` is optional on session routes.
 - When present, it should be one of `architect`, `eye`, `black_sun`, or `neutral`.
+- Public display-name reminder: `eye` is the canonical key for `Order of the Illuminated Eye`.
 - This helps zone ownership and shared-world snapshots stay meaningful without giving SL authority over rewards.
 
 Response JSON:
