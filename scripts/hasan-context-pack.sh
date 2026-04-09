@@ -51,6 +51,11 @@ generate_report() {
   echo "Latest commit: $(git -C "$ROOT_DIR" log --oneline -n 1)"
   echo "Working tree: ${dirty_count} changed path(s)"
   echo
+  echo "Model mix:"
+  echo "  - Hasan coordinator: stronger model for planning, risk calls, and final decisions"
+  echo "  - Worker pods: mini model using scripts/hasan-worker-pack.sh for compact handoffs"
+  echo "  - Escalate back to Hasan on schema, security, deploy, or spec conflicts"
+  echo
   echo "Now:"
   render_section "Now (max 3)"
   echo

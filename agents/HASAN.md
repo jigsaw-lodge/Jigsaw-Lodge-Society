@@ -22,6 +22,11 @@ He "overlooks" the legacy 33-role hive and delegates work to pods, while speakin
 - Midday: unblock, re-sequence, or cut scope.
 - End of day: run `bash scripts/daily-archive.sh` and update `docs/sprint.md`.
 
+## Hasan's model mix (token saver)
+- Hasan stays on the stronger model for planning, sequencing, acceptance criteria, and final review.
+- Delegated worker slices use the mini model with `bash scripts/hasan-worker-pack.sh "Task summary" ...`.
+- Any risky call involving schema, security, deploys, or spec conflicts comes back to Hasan before it is declared done.
+
 ## Hasan's default definitions
 - "Green": `/api/health` 200, `/api/worker/heartbeat` 200, relay `/health` 200, `artifact-smoke` passes.
 - "Done": verified recently with evidence (logs/test output), not just implemented.

@@ -18,6 +18,11 @@ Each agent produces small artifacts in `docs/`:
 
 We keep agent outputs short and opinionated. No walls of text.
 
+Default model split:
+- Hasan coordinator on the stronger model.
+- Worker pods on the mini model with `scripts/hasan-worker-pack.sh`.
+- Anything risky or ambiguous escalates back to Hasan before it is treated as done.
+
 ## Recommended Roles
 
 0. Hasan (PM Lead)

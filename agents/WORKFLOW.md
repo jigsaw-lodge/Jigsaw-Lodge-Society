@@ -12,6 +12,8 @@ This is the operating system for the "virtual coding firm".
 
 Optional: run the daily gating loop in one command:
 - `env ADMIN_TOKEN=... bash scripts/hasan-daily-run.sh`
+- When delegating a cheap worker pass, create a compact brief:
+  - `bash scripts/hasan-worker-pack.sh "Task summary" relevant/file.js`
 
 2. Assign each "Now" item to a pod:
    - Platform, Gameplay, Client, SL, QA, Ops, Docs
@@ -31,6 +33,12 @@ Optional: run the daily gating loop in one command:
    - Add a short note to `docs/release-notes.md` (optional)
    - Create a daily archive bundle (legacy council policy):
      - `bash scripts/daily-archive.sh`
+
+## Mixed-Model Default
+
+- Stronger model: Hasan planning, architecture calls, acceptance criteria, and final judgment.
+- Mini model: pod-level edits, narrow investigations, doc cleanup, and first-pass implementations.
+- Escalate to Hasan before changing schema, secrets, deploy shape, security boundaries, or spec interpretation.
 
 ## What To Do When Stuck
 

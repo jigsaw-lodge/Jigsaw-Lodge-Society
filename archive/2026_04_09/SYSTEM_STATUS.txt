@@ -38,3 +38,11 @@ Stack hint:
   docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
   docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
 
+Jigsaw Lodge Society - Daily Archive
+UTC date: 2026-04-09T19:38:02Z
+
+Stack hint:
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml ps
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
+

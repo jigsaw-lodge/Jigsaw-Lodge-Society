@@ -1,17 +1,21 @@
 Hasan Context Pack
-UTC: 2026-04-09T19:23:30Z
+UTC: 2026-04-09T19:38:02Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 5]
-Latest commit: 8ac19db Finish artifact lifecycle verification and clean test state
-Working tree: 20 changed path(s)
+Branch: ## main...origin/main [ahead 6]
+Latest commit: 59eeaaa Harden session truth and install Hasan context pack
+Working tree: 12 changed path(s)
+
+Model mix:
+  - Hasan coordinator: stronger model for planning, risk calls, and final decisions
+  - Worker pods: mini model using scripts/hasan-worker-pack.sh for compact handoffs
+  - Escalate back to Hasan on schema, security, deploy, or spec conflicts
 
 Now:
-  - `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
   - `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
   - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
+  - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
 
 Next:
-  - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
   - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
   - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
   - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
@@ -32,9 +36,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - 59eeaaa Harden session truth and install Hasan context pack
   - 8ac19db Finish artifact lifecycle verification and clean test state
   - bfed0c3 Ship observer-mode website and prove session persistence
-  - 9e917dd Add timeout coverage and repair XP schema drift
 
 Key files:
   - docs/sprint.md

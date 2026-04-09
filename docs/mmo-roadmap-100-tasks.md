@@ -92,8 +92,8 @@ The goal is not to finish everything at once. The goal is to always know the nex
 60. `DONE` Write one “world snapshot explained” doc that tells you what each field is for.
 
 ## Phase 7 - Relay, HUD, Frontend, And Web UX
-61. `TODO` Verify the relay sends both raw events and user-facing feed envelopes for every major event type.
-62. `TODO` Add relay tests for connection, disconnect, heartbeat, and feed delivery.
+61. `DONE` Verify the relay sends both raw events and user-facing feed envelopes for every major event type.
+62. `DONE` Add relay tests for connection, disconnect, heartbeat, and feed delivery.
 63. `TODO` Make the frontend display current health, latest feed, and battle state reliably.
 64. `TODO` Make `/api/world` polling cadence match the overlay guidance.
 65. `TODO` Hook challenge, ritual, and honey state into the frontend UI.
@@ -142,16 +142,16 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Best next 10 tasks
 If you want the smartest immediate sequence, do these next:
 
-1. Task 9 - remove stale/duplicate startup paths so there is one clear local boot flow.
-2. Task 10 - add a “first 15 minutes” onboarding section.
-3. Task 61 - verify the relay sends both raw events and user-facing feed envelopes.
-4. Task 62 - add relay tests for connection, disconnect, heartbeat, and feed delivery.
-5. Task 73 - add request signing or token handling that is safe for in-world objects.
-6. Task 74 - verify furniture objects can start and maintain sessions correctly.
-7. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
-8. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
-9. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
-10. Task 96 - rewrite the launch checklist to reflect current truth only.
+1. Task 73 - add request signing or token handling that is safe for in-world objects.
+2. Task 74 - verify furniture objects can start and maintain sessions correctly.
+3. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
+4. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
+5. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
+6. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+7. Task 96 - rewrite the launch checklist to reflect current truth only.
+8. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
+9. Task 83 - add automated backups for Postgres and Redis with restore verification.
+10. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.

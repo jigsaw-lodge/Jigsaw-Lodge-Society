@@ -24,6 +24,27 @@ const HEARTBEAT_MS = 30_000;
 const PARCEL_BROADCAST_EVENTS = new Set(["ritual_complete", "surge", "battle_result"]);
 
 const FEED_MESSAGE_HANDLERS = {
+  session_started: (payload) => {
+    const a = payload.avatar_a || payload.avatar;
+    const b = payload.avatar_b || payload.partner;
+    if (a && b) return `${a} and ${b} began a ritual`;
+    if (a) return `${a} began a ritual`;
+    return "A ritual has begun";
+  },
+  ritual_phase_15: (payload) => {
+    const actor = payload.avatar_a || payload.avatar || payload.winner;
+    return actor ? `${actor} crossed the phase-15 threshold` : "A ritual reached phase 15";
+  },
+  session_timeout: (payload) => {
+    const actor = payload.avatar_a || payload.avatar || payload.winner;
+    return actor ? `${actor} let the ritual go idle` : "A ritual timed out";
+  },
+  session_ended: (payload) => {
+    const complete = Number(payload.ritual_complete || 0) >= 1;
+    if (!complete) return null;
+    const actor = payload.avatar_a || payload.avatar || payload.winner;
+    return actor ? `${actor} completed a ritual` : "A ritual completed";
+  },
   ritual_complete: (payload) => {
     const actor = payload.winner || payload.avatar || (payload.participants && payload.participants[0]);
     return actor ? `${actor} completed a ritual` : "A ritual completed";
@@ -174,6 +195,12 @@ function createFeedMessage(event) {
   return handler(event.payload || {});
 }
 
+function shouldBroadcastParcelEvent(event) {
+  if (!event || !event.type) return false;
+  if (PARCEL_BROADCAST_EVENTS.has(event.type)) return true;
+  return event.type === "session_ended" && Number(event.payload?.ritual_complete || 0) >= 1;
+}
+
 function handlePublishedEvent(rawMessage) {
   if (!rawMessage) return;
 
@@ -193,7 +220,7 @@ function handlePublishedEvent(rawMessage) {
     });
   }
 
-  if (PARCEL_BROADCAST_EVENTS.has(event.type)) {
+  if (shouldBroadcastParcelEvent(event)) {
     broadcastEnvelope("parcel_event", {
       event_type: event.type,
       event_id: event.id || "",

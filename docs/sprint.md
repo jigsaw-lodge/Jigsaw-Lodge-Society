@@ -3,12 +3,11 @@
 This is the single page to look at every day.
 
 ## Now (max 3)
-- `TODO` Task 61-62: Verify relay feed envelopes and add relay connection/feed tests.
 - `TODO` Task 73-74: Lock in-world request signing and verify furniture session behavior against it.
 - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
+- `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
 
 ## Next (max 5)
-- `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
@@ -49,3 +48,6 @@ This is the single page to look at every day.
 - `DONE` Production Nginx hardened (gzip, caching, security headers, WS timeouts) and reloaded cleanly.
 - `DONE` Added `docs/qa-checklist.md` (runnable).
 - `DONE` Updated `docs/testing-today-2026-04-09.md` to prod-first and k6-ready.
+- `DONE` Task 61: relay feed envelopes are now verified for artifact, honey, battle, session start, phase-15, timeout, and completed ritual events.
+- `DONE` Task 62: added relay integration coverage for connect, subscribe, ping/pong, disconnect, reconnect, raw event delivery, feed delivery, and parcel events (`test/relay.test.js`).
+- `DONE` Mixed-model workflow locked in: Hasan stays on the stronger model, and mini-worker handoffs now use `scripts/hasan-worker-pack.sh`.

@@ -20,6 +20,12 @@ Use this runbook when WebSocket consumers miss feed packets, `artifact-smoke` re
 4. **Validate the relay emitted both the raw event and the feed.** Watch `docker logs jls_relay --tail 50` for `artifact_spawn` and `feed` messages, or use `ws://localhost:3010` with a simple WebSocket client to observe the packets.
 5. **Retry `npm run artifact-smoke`.** Once you replay the event, rerun smoke test to ensure automation still passes before you continue with the deploy workflow.
 
+## What is currently proven
+- Relay handshake: clients receive `connected`, `subscribed`, and `pong`, and reconnect cleanly after disconnect.
+- Raw event plus `feed` envelope is verified for `artifact_spawn`, `honey_used`, `battle_result`, `session_started`, `ritual_phase_15`, `session_timeout`, and completed `session_ended`.
+- `parcel_event` is verified for `battle_result` and completed `session_ended`.
+- Incomplete `session_ended` events do not emit misleading `feed` or `parcel_event` packets.
+
 ## Tips
 - Store the helper output/event file alongside the incident record so you can rerun it later (`jq`-dumped JSON works fine).  
 - Combine the runbook with your `npm run artifact-smoke` automation to gate deploys—if smoke fails, use this helper before re-running the CI job so you know the relay pipeline is still healthy.  

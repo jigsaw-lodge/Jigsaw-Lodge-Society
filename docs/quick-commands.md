@@ -58,6 +58,11 @@ Generate Hasan's compact token-saver brief:
 bash scripts/hasan-context-pack.sh
 ```
 
+Generate a mini-worker brief for one delegated task:
+```sh
+bash scripts/hasan-worker-pack.sh "Task 61-62: Verify relay feed envelopes" wsrelay.js test/relay.test.js docs/sprint.md
+```
+
 Dev mode (hot reload, avoid rebuild loops):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/dev-up.sh
