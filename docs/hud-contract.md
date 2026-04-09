@@ -58,3 +58,84 @@ Notes:
 - Backend must respond with clear status codes:
   - 401 unauthorized when token is wrong
   - 429 when rate limited
+
+## Session Endpoints (Furniture / Sitters)
+
+Principle: these endpoints queue worker events, but return an immediate `state` snapshot so SL can update UI without waiting.
+
+### POST /api/session/start
+
+URL (prod):
+- `https://api.jigsawlodgesociety.com/api/session/start`
+
+Request JSON:
+```json
+{
+  "avatar": "uuid",
+  "partner": "uuid",
+  "object_id": "uuid",
+  "zone": "0:0",
+  "watchers": 0,
+  "group_tag": 0,
+  "token": "optional-shared-token"
+}
+```
+
+Response JSON:
+```json
+{
+  "ok": true,
+  "queued": true,
+  "session_id": "uuid:uuid",
+  "started_at": 0,
+  "state": { "level": 0, "rituals": 0, "bonds": 0, "watchers": 0, "pentacles": 0, "ritual_progress": 0, "honey": "", "honey_expire": 0, "surge_ready": 0 },
+  "partner_state": { "level": 0, "rituals": 0, "bonds": 0, "watchers": 0, "pentacles": 0, "ritual_progress": 0, "honey": "", "honey_expire": 0, "surge_ready": 0 }
+}
+```
+
+### POST /api/session/tick
+
+URL (prod):
+- `https://api.jigsawlodgesociety.com/api/session/tick`
+
+Request JSON:
+```json
+{
+  "avatar": "uuid",
+  "zone": "0:0",
+  "watchers": 0,
+  "group_tag": 0,
+  "token": "optional-shared-token"
+}
+```
+
+Response JSON:
+```json
+{
+  "ok": true,
+  "queued": true,
+  "state": { "level": 0, "rituals": 0, "bonds": 0, "watchers": 0, "pentacles": 0, "ritual_progress": 0, "honey": "", "honey_expire": 0, "surge_ready": 0 }
+}
+```
+
+### POST /api/session/end
+
+URL (prod):
+- `https://api.jigsawlodgesociety.com/api/session/end`
+
+Request JSON:
+```json
+{
+  "avatar": "uuid",
+  "token": "optional-shared-token"
+}
+```
+
+Response JSON:
+```json
+{
+  "ok": true,
+  "queued": true,
+  "state": { "level": 0, "rituals": 0, "bonds": 0, "watchers": 0, "pentacles": 0, "ritual_progress": 0, "honey": "", "honey_expire": 0, "surge_ready": 0 }
+}
+```

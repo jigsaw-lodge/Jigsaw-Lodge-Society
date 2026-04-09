@@ -244,19 +244,43 @@ function hashFromObject(obj) {
   return out;
 }
 
-function buildHSetArgs(fields = {}) {
-  const args = [];
-  for (const [field, value] of Object.entries(fields || {})) {
-    if (value === undefined || value === null) continue;
-    args.push(field, value);
+// Atomic "claim once" for session flags stored in the session hash.
+//
+// Important: HSETNX only sets if the field is missing. Our session hashes often
+// initialize flags like `ritual_awarded=0`, so HSETNX would always fail and the
+// session_end path would silently skip rewards. This Lua script treats missing
+// OR "0" as claimable and sets the flag to "1" exactly once.
+const CLAIM_SESSION_FLAG_LUA = `
+local v = redis.call('HGET', KEYS[1], ARGV[1])
+if (not v) or v == '0' then
+  redis.call('HSET', KEYS[1], ARGV[1], '1')
+  return 1
+end
+return 0
+`;
+
+async function claimSessionFlag(sessionKey, field) {
+  if (!sessionKey || !field) return false;
+  try {
+    const result = await redis.eval(CLAIM_SESSION_FLAG_LUA, {
+      keys: [sessionKey],
+      arguments: [field],
+    });
+    return Number(result) === 1;
+  } catch (err) {
+    // Fallback for environments where EVAL is restricted: best-effort claim.
+    const cur = await redis.hGet(sessionKey, field);
+    if (String(cur || "0") === "1") return false;
+    await redis.hSet(sessionKey, { [field]: "1" });
+    return true;
   }
-  return args;
 }
 
 async function hSetFields(key, fields = {}) {
-  const args = buildHSetArgs(fields);
-  if (args.length === 0) return;
-  await redis.hSet(key, ...args);
+  const clean = hashFromObject(fields);
+  if (Object.keys(clean).length === 0) return;
+  // node-redis v4/v5: use object form for multi-field HSET.
+  await redis.hSet(key, clean);
 }
 
 function mapFieldsForDb(fields) {
@@ -989,6 +1013,13 @@ async function handleSessionTick(event) {
   if (elapsedSinceTick > SESSION_IDLE_TIMEOUT_MS) return;
 
   if (duration >= SESSION_PHASE_15_MS && toInt(session.phase_15_awarded, 0) !== 1) {
+    const sessionKey = `${SESSION_PREFIX}${session.session_id}`;
+    // Atomic claim so duplicated ticks or multiple workers cannot double-award.
+    const claimed = await claimSessionFlag(sessionKey, "phase_15_awarded");
+    if (!claimed) {
+      // Refresh local snapshot so later logic is consistent.
+      session.phase_15_awarded = 1;
+    } else {
     const avatarA = session.avatar_a;
     const avatarB = session.avatar_b;
     const participants = [avatarA, avatarB].filter(Boolean);
@@ -996,7 +1027,6 @@ async function handleSessionTick(event) {
       await awardXp(participant, 25, "ritual_phase_15", { session_id: session.session_id });
     }
     await saveSession(session.session_id, {
-      phase_15_awarded: 1,
       phase_15_awarded_at: now,
     });
     await emitWorkerEvent("ritual_phase_15", {
@@ -1005,6 +1035,7 @@ async function handleSessionTick(event) {
       avatar_b: avatarB,
       duration,
     });
+    }
   }
 
   const elapsedSinceReward = now - toInt(session.last_reward_at, session.started_at || now);
@@ -1105,6 +1136,7 @@ async function handleSessionEnd(event) {
   const duration = Math.max(0, now - startedAt);
   const avatarA = session.avatar_a;
   const avatarB = session.avatar_b;
+  const sessionKey = `${SESSION_PREFIX}${session.session_id}`;
 
   await saveSession(session.session_id, {
     active: 0,
@@ -1121,20 +1153,30 @@ async function handleSessionEnd(event) {
   // If the session ended after the 15-minute mark but the milestone never fired (no tick),
   // award it once here (idempotent via session flag).
   if (duration >= SESSION_PHASE_15_MS && toInt(session.phase_15_awarded, 0) !== 1) {
-    for (const participant of [avatarA, avatarB].filter(Boolean)) {
-      await awardXp(participant, 25, "ritual_phase_15", { session_id: session.session_id, duration });
+    const claimed = await claimSessionFlag(sessionKey, "phase_15_awarded");
+    if (claimed) {
+      for (const participant of [avatarA, avatarB].filter(Boolean)) {
+        await awardXp(participant, 25, "ritual_phase_15", { session_id: session.session_id, duration });
+      }
+      await saveSession(session.session_id, { phase_15_awarded_at: now });
+      await emitWorkerEvent("ritual_phase_15", {
+        session_id: session.session_id,
+        avatar_a: avatarA,
+        avatar_b: avatarB,
+        duration,
+        source: "session_end",
+      });
     }
-    await saveSession(session.session_id, { phase_15_awarded: 1, phase_15_awarded_at: now });
-    await emitWorkerEvent("ritual_phase_15", {
-      session_id: session.session_id,
-      avatar_a: avatarA,
-      avatar_b: avatarB,
-      duration,
-      source: "session_end",
-    });
   }
 
   if (duration >= SESSION_RITUAL_MS && toInt(session.ritual_awarded, 0) !== 1) {
+    // Atomic claim so a duplicate session_end cannot double-award the ritual completion.
+    const claimed = await claimSessionFlag(sessionKey, "ritual_awarded");
+    if (!claimed) {
+      // Still clear links, but do not award again.
+      await clearAvatarSessionLinks(session);
+      return;
+    }
     ritualComplete = true;
     ritualXp = 75;
 
@@ -1231,7 +1273,6 @@ async function handleSessionEnd(event) {
     });
 
     await saveSession(session.session_id, {
-      ritual_awarded: 1,
       ritual_awarded_at: now,
     });
   }
@@ -1802,15 +1843,11 @@ async function cleanupStaleSessions() {
       const startedAt = toInt(hash.started_at, now);
       const duration = Math.max(0, now - startedAt);
 
-      await redis.hSet(
-        key,
-        "active",
-        "0",
-        "ended_at",
-        String(now),
-        "duration",
-        String(duration)
-      );
+      await redis.hSet(key, {
+        active: "0",
+        ended_at: String(now),
+        duration: String(duration),
+      });
 
       await db.saveSession(sessionId, {
         active: 0,

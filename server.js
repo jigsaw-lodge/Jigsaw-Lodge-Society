@@ -515,6 +515,45 @@ function registerRoutes() {
     }
   });
 
+  app.post("/api/admin/session/fast-forward", async (req, res) => {
+    const body = req.body || {};
+    try {
+      ensureAdminRequest(req);
+      const sessionId = sanitizeText(body.session_id || body.pair_key || "", "");
+      if (!sessionId) return res.status(400).json({ error: "invalid_session_id" });
+
+      const deltaMsRaw = Number(body.delta_ms ?? body.deltaMs ?? 0);
+      const deltaMs = Number.isFinite(deltaMsRaw) ? Math.max(0, Math.min(deltaMsRaw, 7 * 24 * 60 * 60 * 1000)) : 0;
+      if (!deltaMs) return res.status(400).json({ error: "invalid_delta_ms" });
+
+      const now = nowMs();
+      const startedAt = now - deltaMs;
+      const sessionKey = `jls:session:${sessionId}`;
+      const exists = await redis.exists(sessionKey);
+      if (!exists) return res.status(404).json({ error: "session_not_found" });
+
+      // This is a debug/admin helper for accelerating manual tests.
+      // It does not award anything by itself; it only adjusts timestamps.
+      await redis.hSet(sessionKey, {
+        started_at: String(startedAt),
+        last_tick: String(now - 1000),
+        last_reward_at: String(now - 61_000),
+      });
+
+      await db.saveSession(sessionId, {
+        started_at: startedAt,
+        last_tick: now - 1000,
+        last_reward_at: now - 61_000,
+      });
+
+      return res.json({ ok: true, session_id: sessionId, started_at: startedAt, now });
+    } catch (err) {
+      logger.error({ err }, "admin session fast-forward failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/sync", async (req, res) => {
     const body = req.body || {};
     try {
