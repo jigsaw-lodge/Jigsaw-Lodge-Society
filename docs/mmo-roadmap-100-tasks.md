@@ -58,9 +58,9 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Phase 4 - Rituals, Sessions, And Core Loop
 31. `TODO` Make session start persist cleanly in Redis and Postgres every time.
 32. `TODO` Enforce the 15-minute and 45-minute ritual milestone logic exactly once.
-33. `TODO` Prevent duplicate ritual rewards when the same session is retried or replayed.
+33. `DONE` Prevent duplicate ritual rewards when the same session is retried or replayed (session end is idempotent).
 34. `TODO` Add a deterministic winner/loser fallback for battle or ritual resolution edge cases.
-35. `TODO` Add tests that simulate session start, tick, timeout, and normal end.
+35. `DOING` Add tests that simulate session start, tick, timeout, and normal end (idempotent session end test added; still need timeout + phase-15 coverage).
 36. `TODO` Verify session cleanup removes stale Redis keys and avatar-session links.
 37. `TODO` Add clear feed events for ritual start, phase milestone, timeout, and completion.
 38. `TODO` Make drip rewards require the correct ritual prerequisite from the spec.

@@ -22,6 +22,7 @@ This is the single page to look at every day.
 - `DONE` Spec decision: XP curve locked for 2-3 years to Level 100 (`docs/spec-decision-xp-curve.md`).
 - `DONE` Task 5: k6 load testing via Docker Compose (`docs/load-testing.md`).
 - `DONE` Task 15: basic API tests added (`test/api.test.js`) and runnable in-container.
+- `DONE` Session end idempotency fixed (atomic Redis claim) and verified via `test/session-idempotency.test.js`.
 - `DONE` Task 52: battle bar is never null (`services/battleBar.js`).
 - `DONE` Task 69: HUD contract doc locked (`docs/hud-contract.md`).
 - `DONE` Production Nginx hardened (gzip, caching, security headers, WS timeouts) and reloaded cleanly.
