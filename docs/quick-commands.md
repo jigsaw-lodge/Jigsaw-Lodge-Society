@@ -123,3 +123,8 @@ Secret/store help:
 ```sh
 sed -n '1,220p' docs/secrets-and-startup.md
 ```
+
+Security truth check:
+```sh
+sed -n '1,240p' docs/security-review.md
+```

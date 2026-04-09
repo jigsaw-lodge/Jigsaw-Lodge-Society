@@ -4,15 +4,15 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 89: Add the plain-English security review doc now that secrets, signing, and audit behavior are much clearer.
 - `TODO` Task 95: Build the go/no-go dashboard/checklist from the health, smoke, alert, and release-gate evidence we now have.
+- `TODO` Task 63: Make the frontend display current health, latest feed, and battle state reliably.
 
 ## Next (max 5)
+- `TODO` Task 68: Add a clear frontend "connection lost / reconnecting" state for relay interruptions.
+- `TODO` Task 70: Write a beginner-friendly frontend deploy guide that assumes no prior DevOps knowledge.
+- `TODO` Task 93-94: Run and archive the current-build load and pub/sub proof sweep.
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
 - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
-- `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
-- `TODO` Add a small “release note” habit: record evidence for each sprint.
-- `TODO` Task 63-68: Keep tightening the website relay/health/challenge UX after the SL path is locked.
 
 ## Blocked
 - `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
@@ -71,3 +71,5 @@ This is the single page to look at every day.
 - `DONE` Task 88: weekly release gating is now one command via `scripts/weekly-release-check.sh`, backed by `docs/weekly-release-checklist.md`, a scheduled GitHub workflow, and a passing live report at `logs/release-checks/weekly-release-20260409T210922Z.txt`.
 - `DONE` CI compatibility hardening: `scripts/prepare-secrets.sh` plus `stack-env.sh` now make the secret-file flow work in GitHub Actions, and `artifact-smoke.yml` was updated to use it.
 - `DONE` Ops truth rule: for host-side observability, write health logs to the host repo, not only inside containers, or alert/report tooling will silently miss the real signal.
+- `DONE` Task 89: plain-English security review added in `docs/security-review.md`, with current truth on tokens, auth headers, CORS, rate limits, relay exposure, and audit trails.
+- `DONE` Security truth rule: admin Bearer auth and gameplay auth are not the same path; use signed requests (preferred) or `X-JLS-Token` for gameplay, and reserve `Authorization: Bearer` for admin routes unless code changes later.

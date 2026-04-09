@@ -11,7 +11,7 @@ This checklist describes the measurable, cross-team goals that must be met befor
 ## Reliability / SLAs
 - **99.9% uptime** for API, workers, and relay over a rolling 30‑day window (monitor via synthetic health checks on `/api/health`, the worker’s heartbeat, and `/health` on `wsrelay`).  
 - **Restart/resume:** container restart should recover without human intervention; confirm `redis` and `postgres` recover and snapshot states, worker replays unprocessed events without duplication.  
-- **Error budget:** track backend/relay errors, queue saturation, and job failures (artifact smokes, honey ticks); escalate when >0.1% of requests fail.
+- **Error budget:** track backend/relay errors, dispatch health, and job failures (artifact smokes, honey ticks); escalate when >0.1% of requests fail.
 
 ## Automation
 - **Build & deploy:** container images for backend, worker, and relay must be reproducibly built (`docker compose build --pull`, Docker Buildx preferred), signed, and pushed to a registry with version tags.  
@@ -22,16 +22,17 @@ This checklist describes the measurable, cross-team goals that must be met befor
 
 ## Telemetry & alerting
 - **Logging:** centralize logs (backend, worker, relay) with structured metadata (level, component, event, outcome, route, client info) and retain at least 7 days. Keep raw secrets out of logs and event metadata.  
-- **Metrics:** expose latency, error rate, queue depth, connection count, CPU/memory, WebSocket ping/pong, and artifact pipeline throughput.  
-- **Alerts:** trigger on thresholds such as queue >80% length, latency ≥400 ms, rate limit rejections spiking, or OOM (code 137) in containers.
+- **Metrics:** expose latency, error rate, event-subscriber count, connection count, CPU/memory, WebSocket ping/pong, and artifact pipeline throughput.  
+- **Alerts:** trigger on thresholds such as low Redis event-subscriber count, latency ≥400 ms, rate-limit rejections spiking, relay disconnect spikes, or OOM (code 137) in containers.
 - **Current local alert pack:** the current codebase now evaluates API/worker/relay health, latency, Redis event-subscriber count, relay disconnect spikes, restart count, and OOMKilled state through `bash scripts/alert-check.sh`. Central log-plane alerts still need their own deployment-specific wiring.
 - **Artifact pipeline validation:** continuously run `npm run artifact-smoke` (or equivalent) so spawn→relay→persistence is verified per deploy; tie failure to deploy gating.
 
 ## Security & guardrails
 - **Secrets management:** keep `ADMIN_TOKEN`, DB credentials, and signing secrets in file-backed secret mounts or a real secret manager; do not hardcode them in repo. The current stack supports `secrets/`, `/run/secrets`, `*_FILE`, and `JLS_SECRET_DIR`.  
 - **Token enforcement:** backend now fails fast with friendly startup messages when `ADMIN_TOKEN` is missing, and it also blocks startup if signed requests are required without `JLS_SIGNING_SECRET`. Ensure artifact smoke/CI uses unique tokens per environment.  
-- **Rate limiting & CORS:** enforce the 800 ms rate limit, validate CORS headers when the frontend is open to players, and ensure `X-JLS-Token`/`Authorization` flows cover both API and WebSocket (relay).  
+- **Rate limiting & CORS:** enforce the 800 ms rate limit, tighten CORS before any browser client holds privileged power, and remember that admin Bearer auth is separate from gameplay auth. Gameplay should use signed requests or the legacy `X-JLS-Token` path; the relay is public today and should not be treated as a private auth channel.  
 - **Auditability:** log admin artifact spawns, worker events, and relay subscriptions for traceability without storing raw tokens or request signatures.
+- **Plain-English review:** keep `docs/security-review.md` current so founder, ops, and gameplay decisions all use the same security truth.
 
 ## Runbooks & readiness
 - **Recovery steps:** document how to restart the stack (including `docker-compose down/up`), verify relay/client connectivity, and replay feeds (e.g., the Redis publish helper you already used).  
