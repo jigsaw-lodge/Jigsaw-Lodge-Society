@@ -50,12 +50,19 @@ test("GET /api/world returns world.events array", async () => {
   const { res, body, text } = await getJson("/api/world");
   assert.equal(res.status, 200, text);
   assert.ok(body?.world);
+  assert.equal(typeof body?.world?.generated_at, "number", "world.generated_at should be a number");
   assert.ok(Array.isArray(body?.world?.events), "world.events should be an array");
   assert.ok(body?.world?.battle, "world.battle should exist");
   assert.ok(Array.isArray(body?.world?.players), "world.players should be an array");
   assert.ok(Array.isArray(body?.world?.pairs), "world.pairs should be an array");
   assert.ok(Array.isArray(body?.world?.sessions), "world.sessions should be an array");
   assert.ok(typeof body?.world?.metrics === "object", "world.metrics should be an object");
+  assert.equal(typeof body?.world?.metrics?.active_sessions, "number");
+  assert.equal(typeof body?.world?.metrics?.active_players_5m, "number");
+  assert.equal(typeof body?.world?.metrics?.treasury_total_l, "number");
+  assert.equal(typeof body?.world?.battle?.progress, "number");
+  assert.equal(typeof body?.world?.battle?.ticker, "string");
+  assert.equal(typeof body?.world?.battle?.summary, "string");
 });
 
 test("POST /api/session/start queues and returns session_id", async () => {

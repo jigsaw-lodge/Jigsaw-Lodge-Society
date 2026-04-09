@@ -554,6 +554,25 @@ function registerRoutes() {
     }
   });
 
+  app.post("/api/admin/session/cleanup-stale", async (req, res) => {
+    try {
+      ensureAdminRequest(req);
+      const event = await publishEvent(redis, "admin_cleanup_sessions", {}, {
+        source: "admin",
+        triggered_by: getAdminTokenFromRequest(req),
+      });
+      return res.json({
+        ok: true,
+        queued: true,
+        event_id: event.id,
+      });
+    } catch (err) {
+      logger.error({ err }, "admin cleanup stale sessions failed");
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/sync", async (req, res) => {
     const body = req.body || {};
     try {
@@ -584,13 +603,24 @@ function registerRoutes() {
       const activeSessions = await db.countActiveSessions();
       const activePlayers5m = await db.countActivePlayersSince(nowMs() - 5 * 60 * 1000);
       const treasuryTotal = await db.getTreasuryTotal();
+      const generatedAt = nowMs();
       const metrics = {
         active_sessions: activeSessions,
         active_players_5m: activePlayers5m,
         treasury_total_l: Number(treasuryTotal) || 0,
       };
 
-      return res.json({ world: { events, battle, players, pairs, sessions, metrics } });
+      return res.json({
+        world: {
+          generated_at: generatedAt,
+          events,
+          battle,
+          players,
+          pairs,
+          sessions,
+          metrics,
+        },
+      });
     } catch (err) {
       logger.error({ err }, "world snapshot failed");
       return res.status(500).json({ error: "server_error" });

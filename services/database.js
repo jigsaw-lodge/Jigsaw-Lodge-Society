@@ -184,6 +184,7 @@ const PLAYER_COLUMNS = new Set([
 
 async function ensureSchema() {
   await pool.query(INIT_SQL);
+  await pool.query(`ALTER TABLE IF EXISTS players ALTER COLUMN xp TYPE NUMERIC USING xp::numeric`);
 }
 
 async function query(text, params = []) {

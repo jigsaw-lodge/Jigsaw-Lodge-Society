@@ -23,6 +23,7 @@ check() {
 
 check "sessions.ended_at column" "SELECT column_name FROM information_schema.columns WHERE table_name='sessions' AND column_name='ended_at';"
 check "artifact_registry table" "SELECT to_regclass('public.artifact_registry');"
+check "players.xp is numeric" "SELECT column_name FROM information_schema.columns WHERE table_name='players' AND column_name='xp' AND data_type='numeric';"
 
 if [[ "$missing" -ne 0 ]]; then
   echo

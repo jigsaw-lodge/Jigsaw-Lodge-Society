@@ -1734,6 +1734,13 @@ async function handleGenericAction(event) {
   await savePlayer(avatar, updates);
 }
 
+async function handleAdminCleanupSessions() {
+  await cleanupStaleSessions();
+  await emitWorkerEvent("admin_cleanup_complete", {
+    ran_at: nowMs(),
+  });
+}
+
 async function handleEvent(rawMessage) {
   const event = safeJsonParse(rawMessage);
   if (!event || typeof event !== "object") return;
@@ -1788,6 +1795,10 @@ async function handleEvent(rawMessage) {
 
       case "artifact_spawn":
         await handleArtifactSpawn(event);
+        break;
+
+      case "admin_cleanup_sessions":
+        await handleAdminCleanupSessions(event);
         break;
 
       default:

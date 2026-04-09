@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS players(
   avatar TEXT PRIMARY KEY,
-  xp BIGINT DEFAULT 0,
+  xp NUMERIC DEFAULT 0,
   rituals INT DEFAULT 0,
   pentacles NUMERIC DEFAULT 0,
   bonds INT DEFAULT 0,

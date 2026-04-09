@@ -60,8 +60,8 @@ The goal is not to finish everything at once. The goal is to always know the nex
 32. `TODO` Enforce the 15-minute and 45-minute ritual milestone logic exactly once.
 33. `DONE` Prevent duplicate ritual rewards when the same session is retried or replayed (session end is idempotent).
 34. `TODO` Add a deterministic winner/loser fallback for battle or ritual resolution edge cases.
-35. `DOING` Add tests that simulate session start, tick, timeout, and normal end (idempotent session end test added; still need timeout + phase-15 coverage).
-36. `TODO` Verify session cleanup removes stale Redis keys and avatar-session links.
+35. `DOING` Add tests that simulate session start, tick, timeout, and normal end (idempotent session end + timeout coverage added; phase-15 coverage still pending).
+36. `DONE` Verify session cleanup removes stale Redis keys and avatar-session links.
 37. `TODO` Add clear feed events for ritual start, phase milestone, timeout, and completion.
 38. `TODO` Make drip rewards require the correct ritual prerequisite from the spec.
 39. `TODO` Make the worker save session duration, outcome, and reward summary consistently.
@@ -80,7 +80,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 50. `TODO` Create one admin report that shows honey use, pentacle flow, and treasury totals.
 
 ## Phase 6 - World State, Battles, Zones, And Artifacts
-51. `TODO` Finish the `world` snapshot so it includes players, pairs, events, battle, and metrics as promised.
+51. `DOING` Finish the `world` snapshot so it includes players, pairs, events, battle, and metrics as promised.
 52. `DONE` Make battle bar data always return a valid object instead of `null`.
 53. `TODO` Verify zone pressure decay and flip logic match the design spec.
 54. `TODO` Add tests for zone flips and battle resolution.

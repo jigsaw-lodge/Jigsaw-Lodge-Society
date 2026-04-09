@@ -15,6 +15,9 @@ psql \
 ALTER TABLE IF EXISTS sessions
   ADD COLUMN IF NOT EXISTS ended_at BIGINT DEFAULT 0;
 
+ALTER TABLE IF EXISTS players
+  ALTER COLUMN xp TYPE NUMERIC USING xp::numeric;
+
 CREATE TABLE IF NOT EXISTS artifact_registry(
   artifact_id TEXT PRIMARY KEY,
   type TEXT,

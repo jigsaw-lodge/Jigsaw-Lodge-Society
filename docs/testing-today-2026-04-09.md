@@ -65,7 +65,8 @@ This is the shortest practical path to a real test pass today.
   - `init.sql`
   - `services/database.js`
 - Known issue:
-  - `artifact_registry` exists in runtime schema setup but not in `init.sql`
+  - `artifact_registry` existed in runtime schema setup but not in `init.sql`
+  - `players.xp` drifted as `BIGINT` in bootstrap/live DB while runtime math expects fractional XP
 - Fast checks:
   ```sh
   sed -n '1,220p' /opt/jigsaw_lodge/Jigsaw-Lodge-Society/init.sql
@@ -76,8 +77,9 @@ This is the shortest practical path to a real test pass today.
   - a fresh DB bootstrap would support artifact smoke without hidden runtime patching
 - Result:
   - `init.sql` now includes `artifact_registry` and `sessions.ended_at`
+  - `players.xp` is now aligned to `NUMERIC` in bootstrap and migration paths
   - added `scripts/migrate.sh` for live drift repair
-  - applied the live Postgres migration so session writes now persist `ended_at`
+  - applied the live Postgres migration so session writes persist `ended_at` and fractional XP no longer crashes ritual completion
   - backend startup now runs `db.ensureSchema()` as an extra guard
 - Good ChatGPT prompt:
   - `What is the safest way to keep a bootstrap init.sql file in sync with application-managed Postgres schema changes?`
