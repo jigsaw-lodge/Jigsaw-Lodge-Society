@@ -110,9 +110,9 @@ The goal is not to finish everything at once. The goal is to always know the nex
 74. `DONE` Verify furniture objects can start and maintain sessions correctly.
 75. `TODO` Verify zone modules report presence and zone transitions correctly.
 76. `TODO` Verify artifact-triggering objects send the right payloads and cannot spoof rewards.
-77. `TODO` Add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
-78. `TODO` Create a simple “SL object setup guide” for placing and configuring in-world objects.
-79. `TODO` Add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
+77. `DONE` Add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
+78. `DONE` Create a simple “SL object setup guide” for placing and configuring in-world objects.
+79. `DONE` Add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
 80. `TODO` Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
 
 ## Phase 9 - Operations, Security, And Recovery
@@ -133,7 +133,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 93. `TODO` Run and record a real `k6` load test once the tool is installed.
 94. `TODO` Run and record a fresh pub/sub benchmark after load-test setup is complete.
 95. `TODO` Create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
-96. `TODO` Rewrite the launch checklist so “Done” only means currently verified, not historically attempted.
+96. `DONE` Rewrite the launch checklist so “Done” only means currently verified, not historically attempted.
 97. `TODO` Create a content roadmap for new rituals, cosmetics, artifacts, and social events after launch.
 98. `TODO` Define the top 5 metrics that tell you if the game is becoming #1, like retention, concurrent users, rituals per day, and conversion.
 99. `TODO` Create a weekly founder review ritual: what shipped, what broke, what players loved, what to do next.
@@ -142,16 +142,16 @@ The goal is not to finish everything at once. The goal is to always know the nex
 ## Best next 10 tasks
 If you want the smartest immediate sequence, do these next:
 
-1. Task 77 - add an SL sandbox test checklist for sessions, rituals, honey, and battle events.
-2. Task 78 - create a simple “SL object setup guide” for placing and configuring in-world objects.
-3. Task 79 - add a troubleshooting doc for common SL integration issues like timeout, bad token, or stale relay.
-4. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-5. Task 96 - rewrite the launch checklist to reflect current truth only.
-6. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
-7. Task 83 - add automated backups for Postgres and Redis with restore verification.
-8. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
-9. Task 71 - audit the current LSL scripts against the locked API contract.
-10. Task 72 - make one minimal HUD script that only handles input/output and trusts backend authority.
+1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+2. Task 71 - audit the current LSL scripts against the locked API contract.
+3. Task 72 - make one minimal HUD script that only handles input/output and trusts backend authority.
+4. Task 86 - add structured logs for admin actions, purchases, artifact actions, and session failures.
+5. Task 83 - add automated backups for Postgres and Redis with restore verification.
+6. Task 84 - add a one-command restore drill for a staging environment.
+7. Task 85 - create a real incident checklist for backend down, relay down, Redis down, and DB drift.
+8. Task 63 - make the frontend display current health, latest feed, and battle state reliably.
+9. Task 68 - add a “connection lost / reconnecting” UI state for relay interruptions.
+10. Task 75 - verify zone modules report presence and zone transitions correctly.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.

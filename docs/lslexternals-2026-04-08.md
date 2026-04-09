@@ -23,6 +23,7 @@ Bundle of client-side scripts/assets that Second Life uses to exercise the backe
 3. Sit on the chair to start a session; the HUD should bootstrap (weighted frames) and the feedback object should respond to backend events (ritual/battle/pulse).
 4. Use `/api/world` (or the event feedback object) to verify watchers, rituals, battles, and honey applications display correctly. Keep logs/screenshots for QA signoff.
 5. Prefer signed requests for HUDs/chairs using `docs/sl-request-signing.md`; keep the shared token only as a migration fallback.
+6. For placement help and recovery steps, keep `docs/sl-object-setup-guide.md` and `docs/sl-troubleshooting.md` open during the pass.
 
 ## Versioning
 

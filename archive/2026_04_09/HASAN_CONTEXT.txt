@@ -1,9 +1,9 @@
 Hasan Context Pack
-UTC: 2026-04-09T19:51:54Z
+UTC: 2026-04-09T19:58:23Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 8]
-Latest commit: c115900 Add SL request signing and furniture bridge
-Working tree: 3 changed path(s)
+Branch: ## main...origin/main [ahead 9]
+Latest commit: 304fcb8 Document signing activation step
+Working tree: 11 changed path(s)
 
 Model mix:
   - Hasan coordinator: stronger model for planning, risk calls, and final decisions
@@ -12,12 +12,11 @@ Model mix:
   - Escalate back to Hasan on schema, security, deploy, or spec conflicts
 
 Now:
-  - `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
-  - `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
   - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+  - `TODO` Task 71-72: Audit the current LSL scripts against the locked contract and cut one minimal I/O-only HUD script.
+  - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 
 Next:
-  - `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
   - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
   - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
   - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
@@ -38,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - 304fcb8 Document signing activation step
   - c115900 Add SL request signing and furniture bridge
   - 06ba2fb Verify relay envelopes and add Hasan worker packs
-  - 59eeaaa Harden session truth and install Hasan context pack
 
 Key files:
   - docs/sprint.md

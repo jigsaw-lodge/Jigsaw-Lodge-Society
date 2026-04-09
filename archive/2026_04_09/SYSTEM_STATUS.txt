@@ -62,3 +62,23 @@ Stack hint:
   docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
   docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
 
+Fresh verification notes - 2026-04-09T19:54Z
+  API health:
+    {"ok":1,"redis":1}
+  Worker heartbeat:
+    {"ok":1,"redis":1}
+  Relay health:
+    {"ok":1,"service":"wsRelay","redis":1,"clients":0}
+  Artifact smoke:
+    passed
+    artifact_id=test-artifact-c6a0460b-1775764472035
+    event_id=1775764472067_f0f2a8a1cda6
+    artifact_registered=1775764472084_c9f7d109d6e4
+Jigsaw Lodge Society - Daily Archive
+UTC date: 2026-04-09T19:58:23Z
+
+Stack hint:
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml ps
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
+

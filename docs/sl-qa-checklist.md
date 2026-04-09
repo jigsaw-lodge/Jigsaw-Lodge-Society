@@ -7,6 +7,8 @@ Goal: prove SL -> HTTP -> Node -> Redis -> Worker -> WebSocket -> HUD/Web is fun
   - `env ADMIN_TOKEN=... bash scripts/hasan-daily-run.sh`
 - You have the HUD script ready in SL:
   - `lslexternals-2026-04-08/jls_hud_v68.ll`
+- You have the object setup guide open:
+  - `docs/sl-object-setup-guide.md`
 - If signing is enabled:
   - your object sends `timestamp`, `request_id`, and `signature`
   - you have `docs/sl-request-signing.md` open while testing
@@ -65,3 +67,6 @@ Pass when:
 - one screenshot of HUD state
 - one screenshot of web feed
 - one artifact smoke pass (or admin spawn)
+
+If the pass breaks:
+- stop and use `docs/sl-troubleshooting.md`

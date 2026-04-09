@@ -68,6 +68,13 @@ Generate a nano-worker brief for a tiny utility task:
 bash scripts/hasan-worker-pack.sh --mode nano "Summarize today's blockers" docs/sprint.md docs/risks.md
 ```
 
+Production SL preflight:
+```sh
+curl -fsS https://api.jigsawlodgesociety.com/api/health
+curl -fsS https://api.jigsawlodgesociety.com/api/worker/heartbeat
+curl -fsS https://ws.jigsawlodgesociety.com/health
+```
+
 Dev mode (hot reload, avoid rebuild loops):
 ```sh
 env ADMIN_TOKEN=testtoken bash scripts/dev-up.sh

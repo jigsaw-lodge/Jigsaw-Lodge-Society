@@ -116,7 +116,9 @@ Notes:
 
 Start here:
 - `docs/hud-contract.md` (what the HUD sends and expects back)
+- `docs/sl-object-setup-guide.md` (how to place and wire objects in-world)
 - `docs/sl-qa-checklist.md` (the step-by-step end-to-end pass)
+- `docs/sl-troubleshooting.md` (what to do when the SL side misbehaves)
 
 The goal is:
 SL HUD/Furniture -> HTTP -> Backend -> Redis -> Worker -> Relay -> HUD/Web

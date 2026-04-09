@@ -3,12 +3,11 @@
 This is the single page to look at every day.
 
 ## Now (max 3)
-- `TODO` Rewrite launch checklist wording so "Done" means currently verified (no historical claims).
-- `TODO` Task 77-79: Finish the SL checklist, object setup guide, and troubleshooting doc.
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
+- `TODO` Task 71-72: Audit the current LSL scripts against the locked contract and cut one minimal I/O-only HUD script.
+- `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 
 ## Next (max 5)
-- `TODO` Task 86: Add structured logs for admin actions, purchases, artifact actions, and session failures.
 - `TODO` Task 83-85: Finish backups, restore drill, and the incident checklist.
 - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
@@ -55,3 +54,7 @@ This is the single page to look at every day.
 - `DONE` Task 73: signed SL request support is now implemented with `timestamp`, `request_id`, `signature`, replay protection, stale-request rejection, and a rollout doc (`docs/sl-request-signing.md`); live prod activation still needs `JLS_SIGNING_SECRET` set in deploy env.
 - `DONE` Task 74: legacy furniture `sit` / `unsit` / `ritual_tick` actions now bridge into the authoritative session engine, and signed furniture/session compatibility is proven by `test/request-signing.test.js`.
 - `DONE` Nano lane added to Hasan's worker system for tiny utility passes via `scripts/hasan-worker-pack.sh --mode nano`.
+- `DONE` Task 77: the SL sandbox checklist is now tightened and linked from setup docs (`docs/sl-qa-checklist.md`).
+- `DONE` Task 78: beginner-friendly object placement and endpoint wiring guide added (`docs/sl-object-setup-guide.md`).
+- `DONE` Task 79: beginner-friendly Second Life troubleshooting guide added (`docs/sl-troubleshooting.md`).
+- `DONE` Task 96: launch checklist rewritten so statuses are `Verified (date)` or `Needs Re-Verify`, with fresh April 9 evidence recorded in `docs/launch-100-checklist.md`.

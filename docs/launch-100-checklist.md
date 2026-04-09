@@ -1,36 +1,63 @@
 # 100% MMO Ready Checklist
 
-This checklist translates the goals from `docs/launch-success-criteria.md` into explicit actions, owners, and verification artifacts so we can declare the stack fully “MMO ready.”
+This is the truth board for launch readiness.
 
-Important rule (Task 96):
-- **Never write "Done" unless it is currently verified.**
-- Use statuses like `Verified (YYYY-MM-DD)` or `Needs Re-Verify`.
-- Evidence must include a date and a command/output reference.
-- Any verification older than 7 days should be treated as `Needs Re-Verify` until rerun.
+Use only these statuses:
+- `Verified (YYYY-MM-DD)`: checked recently against the current build
+- `Needs Re-Verify`: old, partial, or missing proof
+
+Rule:
+- never write `Done`
+- if the proof is weak, stale, or based on an older build, use `Needs Re-Verify`
+
+## Freshly verified on April 9, 2026
+
+- API health: `curl -fsS https://api.jigsawlodgesociety.com/api/health` -> `ok:1`
+- worker heartbeat: `curl -fsS https://api.jigsawlodgesociety.com/api/worker/heartbeat` -> `ok:1`
+- relay health: `curl -fsS https://ws.jigsawlodgesociety.com/health` -> `ok:1`
+- artifact smoke: `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed with artifact `test-artifact-c6a0460b-1775764472035`
+- backend suite: `26/26` passing on the current build
+
+## Go / No-Go today
+
+Current call:
+- `NO-GO` for claiming full “100% MMO ready”
+
+Why:
+- we still need the real SL end-to-end capture
+- several launch rows below still need current proof
+- signed SL traffic exists in code, but production enforcement still needs a deployed `JLS_SIGNING_SECRET` and updated objects
+
+## Checklist
 
 | Category | Action | Owner | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| Scaling | Run a distributed load test that sustains 100‑150 concurrent players and a 500 TPS artifact/event/session burst while staying under 250 ms 95th latency. | Performance | Needs Re-Verify | Record a fresh run under current build and paste the k6 summary into today’s `archive/YYYY_MM_DD/`. |
-| Scaling | Verify `events_channel` PUB/SUB end-to-end with ≥10 relay subscribers, confirm no backlog, and capture Redis throughput metrics. | Infrastructure | Needs Re-Verify | Re-run `scripts/pubsub-bench.js` under current build and archive output. |
-| Scaling | Prove Postgres storage growth handling >1M events and document autoscaling requirements for disk/IO. | Data Ops | Needs Re-Verify | Re-run the row-count + size checks on current prod DB (or staging) and archive output. |
-| Reliability | Execute synthetic health checks for `/api/health`, worker heartbeat, and relay `/health` and show 99.9% uptime for a rolling 30‑day window. | SRE | Needs Re-Verify | The last recorded report showed substantial failures; rerun the monitor for real and keep the report current. |
-| Reliability | Test container restart/resume: reboot backend/relay/worker containers, ensure Redis/Postgres recover, and verify worker replays without duplication. | Platform | Done (2026-04-08) | `docker-compose restart backend worker relay` (Apr 8 00:21); service logs now show normal startup messages and no further `zone pressure tick failed` errors after fixing `gatherSessionKeys` to use the modern `redis.scan(cursor, {MATCH, COUNT})` response shape, so restarts recover cleanly. |
-| Reliability | Track error budgets for backend/relay (API fails, queue saturation, artifact jobs) and raise when >0.1% failure; keep weekly trend sheet. | Observability | Done (2026-04-08) | `logs/health-checks.log` plus `docker-compose exec backend ./scripts/health-check-report.py --days 30 --failures 3` (see `docs/health-checks.md`) now provide the weekly error-budget sheet; the latest report (2026-03-09 to 2026-04-08) still shows api/worker/wsrelay at 1/5 success with the 02:40:33Z, 02:09:49Z, and 01:59:05Z connection-reset failures documented so we can chart the failure rate before each release. |
-| Automation | Reproducibly build backend/worker/relay images via `docker-compose build --pull backend worker relay` (Buildx preferred), sign them, and push version tags to the registry. | Release | Done (2026-04-08) | `REGISTRY=ghcr.io/jigsaw-lodge ./scripts/push-rebuilt-images.sh` pushed backend `1b3605a581dc`, worker `a3a27579ca1e`, relay `05871a1aaabd` to `ghcr.io/jigsaw-lodge/jls-*` (digests sha256:60ee4d62251283963e02add847bfc7a9e14f3fbc29009351967bbd75e48aae62, sha256:278727aaa8df7f78141d8d7aa6f74564f08bb035459b46bd0a404a2d61c77a1e, sha256:9dd2b0f5d71399be228b1dbdca8fccbf518b8938ea9e05174fce017ec8801603). |
-| Automation | Deploy through rolling updates with health checks on `/api/health` and `/health`, and trigger automated rollback if smoke or relay connectivity fails. | Release | Done (2026-04-08) | `docker-compose up -d --no-deps --force-recreate backend worker relay` restarted each service; `docker-compose exec backend curl -s http://localhost:3000/api/health` → `{"ok":1,"redis":1,"time":1775621350295}`, `docker-compose exec backend curl -s http://localhost:3000/api/worker/heartbeat` → `{"ok":1,"redis":1,"time":1775621361160}`, `docker-compose exec relay curl -s http://localhost:3010/health` → `{"ok":1,"service":"wsRelay","redis":1,"clients":0,"time":1775621371928}`; combined with the uptime report from row 10, these prove each health probe now passes post-rolling-update. |
-| Automation | Keep GitHub Actions `Artifact Smoke CI` (or equivalent) gated on each push/PR, ensuring `npm run artifact-smoke` passes before merges. | CI | Done (2026-04-08) | `.github/workflows/artifact-smoke.yml` now runs `scripts/run-artifact-smoke.js` for every push/PR; I mirrored that by running `docker-compose exec backend env ADMIN_TOKEN=<REDACTED> BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js`, which delivered `artifact_spawn`/`artifact_registered` logs (artifact_id `test-artifact-302ae716-1775620211059`) and reported “Artifact smoke test passed.” |
-| Automation | Script DB/Redis backups, schema migrations, and provisioning so new environments match production (`init.sql` + new migrations). | Infrastructure | Done (2026-04-08) | `scripts/backup-datastores.sh` (wrapped by `.github/workflows/datastore-backup.yml`, scheduled daily at 04:00 UTC with `KEEP_DAYS=7`) now drops `pg_dump` and `redis-cli --rdb` artifacts, rotates files older than seven days, and uploads `backups/` so you can grab the latest backup bundle before any deploy. |
-| Telemetry | Centralize logs for backend, worker, and relay with structured metadata (level, type, client) and retain ≥7 days. | Observability | Done (2026-04-08) | `docs/operations-hardening.md` now calls out the centralized pipeline plus `scripts/health-check-monitor.sh`, which emits JSON records to `logs/health-checks.log` with the canonical metadata so the logging plane can filter by `label`, `http_code`, `duration_ms`, and `ok`. |
-| Telemetry | Expose latency, error rate, queue depth, connection count, WebSocket ping/pong, and artifact throughput metrics in a dashboard. | Observability | Done (2026-04-08) | `scripts/telemetry-snapshot.sh` samples backend/worker latency, queue depth, relay client counts, and container stats and appends them to `logs/telemetry-metrics.log`; stream that file into your dashboards (see `docs/operations-hardening.md#observability--alerts`) and anchor artifact throughput to the smoke test recorded in row 20. |
-| Telemetry | Define and configure alerts for queue >80%, latency ≥400 ms, rate limit spikes, and container OOM (code 137). | SRE | Done (2026-04-08) | `docs/operations-hardening.md#observability--alerts` now references these thresholds and ties them to the telemetry/runbook automation (`logs/health-checks.log`, `logs/telemetry-metrics.log`) so responders know which script or dashboard to check before triaging. |
-| Telemetry | Continuously run the artifact pipeline (`npm run artifact-smoke` or relay verification) in production-like environments and tie failures to rollback gating. | QA | Done (2026-04-08) | `artifact-smoke` ran inside `docker-compose exec backend` (Apr 8 00:14:56Z) with `artifact_id test-artifact-67956753-1775607296468`; log confirms persistence→relay→feed and no errors. |
-| Security | Store `ADMIN_TOKEN`, DB credentials, relay configs, and other secrets in a vault; rotate regularly and remove hardcoding. | Security | Done (2026-04-08) | `docs/operations-hardening.md#secrets--tokens` now authorizes vault storage, quarterly rotations, and least-privilege policies so no secrets live in the repo. |
-| Security | Enforce backend start blockage without `ADMIN_TOKEN`, and provision unique tokens per environment for artifact smoke/CI. | Security | Done (2026-04-08) | `server.js` refuses to start when `ADMIN_TOKEN` is missing, `docs/frontend-deploy.md` describes the `data-shared-token` pattern, and ops issues unique tokens per environment before running `artifact-smoke`. |
-| Security | Apply the 800 ms rate limit, validate CORS headers for player-facing endpoints, and ensure `X-JLS-Token`/`Authorization` flows cover API and WS/relay. | Security | Done (2026-04-08) | The 800 ms rate limit and CORS/X-JLS-Token requirements live in `README.md` (line ~324) and `docs/operations-hardening.md#observability--alerts`, so every release enforces those headers plus the authorization flow described there. |
-| Security | Audit admin artifact spawns, worker events, and relay subscriptions for traceability; surface these logs to security dashboards. | Observability | Done (2026-04-08) | `scripts/telemetry-snapshot.sh` streams artifact spawn/worker/relay telemetry into `logs/telemetry-metrics.log`, and the runbook (`docs/operations-hardening.md#observability--alerts`) ties those logs to Datadog/CloudWatch so auditors get the full feed. |
-| Runbooks | Document stack restart steps (including `docker-compose down/up`), relay/client connectivity checks, and feed replay helpers. | Ops | Done (2026-04-08) | `docs/operations-hardening.md#runbooks--signoff` now covers the restart/runbook steps (down/up commands, `/api/health`, `/health`, replay helpers, and the `replay-event` script) so operators can follow the same flow each time. |
-| Runbooks | Provide scripts for log collection, event replay into `events_channel`, and rerunning the artifact smoke after incidents. | Ops | Done (2026-04-08) | `scripts/telemetry-snapshot.sh` and `logs/telemetry-metrics.log` capture telemetry, `scripts/replay-event.js` and `scripts/run-artifact-smoke.js` cover replay/automation, and `docs/operations-hardening.md#runbooks--signoff` ties those scripts to incident steps. |
-| Runbooks | Obtain written signoff from infrastructure, ops, gameplay, and security owners that their checklist items are green. | Program | Done (2026-04-08) | `docs/signoff-tracker.md` now records each owner’s `Done` status (infra/ops/gameplay/security) along with the relevant evidence (rows 8/9/10/12/15 and the security runbook), so this row can reference the tracker for one-stop signoff verification. |
-| Launch Ready Evidence | Capture QA summary, Go/No-Go status, and the artifact verification record (latest run) inside `docs/launch-success-criteria.md` and related launch notes. | QA | Done (2026-04-08) | QA summary/Go-No-Go narrative now lives under “Launch Ready Evidence” in `docs/launch-success-criteria.md` (Apr 8 2026) and points to the documented load test, synthetic health checks, telemetry automation, and artifact smoke run from rows 7, 10, 17‑20 of this checklist. |
+| Scaling | Run a distributed load test that sustains 100-150 concurrent players and a 500 TPS artifact/event/session burst while staying under 250 ms p95 latency. | Performance | Needs Re-Verify | Rerun the k6 load pass on the current build and archive the summary in `archive/YYYY_MM_DD/`. |
+| Scaling | Verify `events_channel` PUB/SUB end-to-end with at least 10 relay subscribers and capture Redis throughput metrics. | Infrastructure | Needs Re-Verify | Rerun `scripts/pubsub-bench.js` and archive the output from the current stack. |
+| Scaling | Prove Postgres storage growth handling above 1M events and document storage / IO requirements. | Data Ops | Needs Re-Verify | Rerun the DB size and row-count checks on the current prod or staging database. |
+| Reliability | Show 99.9% uptime for API, worker, and relay over a rolling 30-day window. | SRE | Needs Re-Verify | One live health sweep passed on 2026-04-09, but the 30-day proof is not current enough yet. |
+| Reliability | Restart backend, worker, and relay and prove recovery without duplicate rewards or stuck sessions. | Platform | Needs Re-Verify | This was proven on 2026-04-08 but should be rerun on the current build before launch. |
+| Reliability | Track backend and relay error budgets and keep a weekly trend sheet. | Observability | Needs Re-Verify | Existing health-check reporting exists, but the weekly trend needs a current rerun and clean interpretation. |
+| Automation | Reproducibly build backend, worker, and relay images and push versioned release images. | Release | Needs Re-Verify | Builds are working locally and on prod, but the latest commit has not been pushed through the full release image flow yet. |
+| Automation | Deploy through rolling updates with health checks and automatic rollback gates. | Release | Needs Re-Verify | Manual rebuilds and health checks succeeded on 2026-04-09; automatic rollback proof still needs a fresh run. |
+| Automation | Keep Artifact Smoke CI gating every push or PR. | CI | Needs Re-Verify | Workflow exists, but current-commit CI proof is not recorded in today’s archive. |
+| Automation | Script DB backups, Redis backups, schema migrations, and environment provisioning. | Infrastructure | Needs Re-Verify | Backup and migration scripts exist, but restore verification is still an open task. |
+| Telemetry | Centralize backend, worker, and relay logs with structured metadata and 7+ day retention. | Observability | Needs Re-Verify | Logging groundwork exists, but structured log coverage is still incomplete. |
+| Telemetry | Expose latency, error rate, queue depth, connection count, ping/pong, and artifact throughput in dashboards. | Observability | Needs Re-Verify | Telemetry helpers exist, but the current dashboard proof is not fresh. |
+| Telemetry | Define and wire alert thresholds for queue pressure, latency spikes, rate-limit spikes, and OOM events. | SRE | Needs Re-Verify | Alert guidance exists in docs, but current alert wiring still needs confirmation. |
+| Telemetry | Continuously validate the artifact pipeline with smoke or equivalent relay verification. | QA | Verified (2026-04-09) | `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed on production with artifact `test-artifact-c6a0460b-1775764472035`. |
+| Security | Store secrets in a proper secret system and rotate them regularly. | Security | Needs Re-Verify | Policy/docs exist, but live secret-store verification is still pending. |
+| Security | Enforce backend startup failure without `ADMIN_TOKEN`, and keep unique tokens per environment. | Security | Needs Re-Verify | Code still blocks missing `ADMIN_TOKEN`, but environment-level token hygiene has not been freshly verified. |
+| Security | Enforce rate limiting, CORS, and player request authentication for the current build. | Security | Verified (2026-04-09) | Current suite passed `26/26`, including signed request acceptance, stale rejection, replay blocking, and route auth coverage. |
+| Security | Audit admin actions, worker events, and relay subscriptions for traceability. | Observability | Needs Re-Verify | This remains tied to the structured logging work. |
+| Runbooks | Keep restart, health, relay replay, and connectivity runbooks written and usable by a new operator. | Ops | Verified (2026-04-09) | `docs/relay-runbook.md`, `docs/local-setup.md`, and `docs/quick-commands.md` are current and align with the present stack. |
+| Runbooks | Provide scripts for log capture, event replay, and rerunning artifact smoke after incidents. | Ops | Verified (2026-04-09) | `scripts/replay-event.js`, `scripts/run-artifact-smoke.js`, and `scripts/smoke.sh` are present and the smoke path passed today. |
+| Program | Obtain current signoff from infrastructure, ops, gameplay, and security owners. | Program | Needs Re-Verify | Signoff must be refreshed after the current launch checklist and SL test sweep. |
+| Launch Ready Evidence | Capture the latest QA summary, Go/No-Go, and evidence references in the launch docs and archive. | QA | Verified (2026-04-09) | This checklist now records today’s health, smoke, test, and no-go truth directly. |
 
-Keep this checklist updated immediately after each verification sweep so the “Launch Ready Evidence” section in `docs/launch-success-criteria.md:39-42` always points to the freshest QA summary and Go/No-Go signal.
+## What must happen next before we can call it ready
+
+1. Record one full SL object -> API -> worker -> relay -> HUD/web pass.
+2. Audit the current LSL scripts and cut the smallest I/O-only HUD path.
+3. Rerun the load, PUB/SUB, restart, and backup/restore proof on the current build.
+4. Deploy `JLS_SIGNING_SECRET`, update the SL objects, and then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
