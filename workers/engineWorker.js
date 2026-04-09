@@ -3,7 +3,14 @@
 // JIGSAW LODGE SOCIETY — ENGINE WORKER
 // Consumes events_channel and applies XP / ritual / honey / drip progression.
 
-require("dotenv").config();
+let runtimeConfigReport;
+try {
+  const { initializeRuntimeConfig } = require("../services/runtimeConfig");
+  runtimeConfigReport = initializeRuntimeConfig("worker");
+} catch (err) {
+  require("fs").writeSync(process.stderr.fd, `${err.message}\n`);
+  process.exit(1);
+}
 
 const crypto = require("crypto");
 const pino = require("pino");
@@ -25,8 +32,10 @@ const {
   buildEventLogContext,
   serializeError,
 } = require("../services/structuredLogging");
+const { emitRuntimeWarnings } = require("../services/runtimeConfig");
 
 const logger = pino({ level: process.env.LOG_LEVEL || "info" }).child({ component: "worker" });
+emitRuntimeWarnings(runtimeConfigReport, logger);
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 

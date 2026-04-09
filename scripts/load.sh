@@ -8,4 +8,4 @@ require_admin_token
 # Usage:
 #   env ADMIN_TOKEN=testtoken bash scripts/load.sh
 
-compose run --rm k6 run /scripts/k6-load-test.js
+compose run --rm -e ADMIN_TOKEN="$ADMIN_TOKEN" k6 run /scripts/k6-load-test.js

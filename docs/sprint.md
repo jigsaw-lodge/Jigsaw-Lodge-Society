@@ -4,8 +4,8 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 81-82: Move secrets into a proper store and fail fast with beginner-friendly startup errors when required secrets are missing.
 - `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
+- `TODO` Task 89: Add the plain-English security review doc now that secrets, signing, and audit behavior are much clearer.
 
 ## Next (max 5)
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -64,3 +64,6 @@ This is the single page to look at every day.
 - `DONE` Task 84: one-command restore drill added in `scripts/restore-drill.sh` and verified on the live host against fresh April 9 backups (latest summary in `backups/restore-drill-*.txt`).
 - `DONE` Task 85: founder-safe incident checklist added in `docs/incident-checklist.md` for backend down, relay down, Redis down, and DB drift.
 - `DONE` Task 96: launch checklist rewritten so statuses are `Verified (date)` or `Needs Re-Verify`, with fresh April 9 evidence recorded in `docs/launch-100-checklist.md`.
+- `DONE` Task 81: live stack secrets now live in the file-backed store (`secrets/` -> `/run/secrets`), backend/worker no longer carry raw `ADMIN_TOKEN` or `DB_PASS` in container env, Postgres now uses `POSTGRES_PASSWORD_FILE`, and the operator guide is in `docs/secrets-and-startup.md`.
+- `DONE` Task 82: API, worker, relay, and artifact smoke now fail fast with beginner-friendly config errors through `services/runtimeConfig.js`; proof is in `test/runtime-config.test.js`, full suite `33/33`, and fresh production health + smoke on the rebuilt stack.
+- `DONE` Security hardening rule: `.env` and `secrets/` are now excluded from Docker build context via `.dockerignore` so runtime secrets are mounted, not baked into images.

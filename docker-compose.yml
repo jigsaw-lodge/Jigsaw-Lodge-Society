@@ -7,11 +7,12 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_pass
       POSTGRES_DB: jls
     volumes:
       - jls_db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./secrets:/run/secrets:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -37,18 +38,21 @@ services:
       redis:
         condition: service_started
     environment:
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
-      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
-      JLS_SIGNING_SECRET: ${JLS_SIGNING_SECRET}
+      ADMIN_TOKEN_FILE: ${ADMIN_TOKEN_FILE:-}
+      JLS_SHARED_TOKEN_FILE: ${JLS_SHARED_TOKEN_FILE:-}
+      JLS_SIGNING_SECRET_FILE: ${JLS_SIGNING_SECRET_FILE:-}
       JLS_SIGNING_MAX_SKEW_SEC: ${JLS_SIGNING_MAX_SKEW_SEC:-120}
       JLS_SIGNING_NONCE_TTL_SEC: ${JLS_SIGNING_NONCE_TTL_SEC:-300}
       JLS_REQUIRE_SIGNED_REQUESTS: ${JLS_REQUIRE_SIGNED_REQUESTS:-0}
+      JLS_SECRET_DIR: /run/secrets
       REDIS_URL: redis://redis:6379
       DB_HOST: db
       DB_USER: postgres
-      DB_PASS: password
+      DB_PASS_FILE: ${DB_PASS_FILE:-}
       DB_NAME: jls
       DB_PORT: 5432
+    volumes:
+      - ./secrets:/run/secrets:ro
     ports:
       - "3000:3000"
 
@@ -64,13 +68,15 @@ services:
       backend:
         condition: service_started
     environment:
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      JLS_SECRET_DIR: /run/secrets
       REDIS_URL: redis://redis:6379
       DB_HOST: db
       DB_USER: postgres
-      DB_PASS: password
+      DB_PASS_FILE: ${DB_PASS_FILE:-}
       DB_NAME: jls
       DB_PORT: 5432
+    volumes:
+      - ./secrets:/run/secrets:ro
     command: ["node", "workers/engineWorker.js"]
 
   relay:
@@ -81,10 +87,13 @@ services:
       redis:
         condition: service_started
     environment:
+      JLS_SECRET_DIR: /run/secrets
       REDIS_URL: redis://redis:6379
       WS_PORT: 3010
       WS_HOST: 0.0.0.0
     command: ["node", "wsrelay.js"]
+    volumes:
+      - ./secrets:/run/secrets:ro
     ports:
       - "3010:3010"
 
@@ -96,7 +105,6 @@ services:
         condition: service_started
     environment:
       BASE_URL: http://backend:3000
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
     volumes:
       - ./scripts:/scripts:ro
     entrypoint: ["k6"]

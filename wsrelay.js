@@ -4,14 +4,23 @@
 // Redis subscriber → WebSocket push layer
 // Keeps the API stateless and the client feedback live.
 
-require("dotenv").config();
+let runtimeConfigReport;
+try {
+  const { initializeRuntimeConfig } = require("./services/runtimeConfig");
+  runtimeConfigReport = initializeRuntimeConfig("relay");
+} catch (err) {
+  require("fs").writeSync(process.stderr.fd, `${err.message}\n`);
+  process.exit(1);
+}
 
 const http = require("http");
 const pino = require("pino");
 const { createClient } = require("redis");
 const { WebSocketServer } = require("ws");
+const { emitRuntimeWarnings } = require("./services/runtimeConfig");
 
 const logger = pino({ level: process.env.LOG_LEVEL || "info" });
+emitRuntimeWarnings(runtimeConfigReport, logger);
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const WS_PORT = Number(process.env.WS_PORT || 3010);

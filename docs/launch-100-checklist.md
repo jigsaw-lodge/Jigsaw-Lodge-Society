@@ -16,8 +16,9 @@ Rule:
 - worker heartbeat: `curl -fsS https://api.jigsawlodgesociety.com/api/worker/heartbeat` -> `ok:1`
 - relay health: `curl -fsS https://ws.jigsawlodgesociety.com/health` -> `ok:1`
 - artifact smoke: `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed with artifact `test-artifact-c6a0460b-1775764472035`
-- backend suite: `30/30` passing on the current build
+- backend suite: `33/33` passing on the current build
 - backups + restore drill: `REDIS_PORT=6380 bash scripts/backup-datastores.sh` then `bash scripts/restore-drill.sh` passed; latest summary is under `backups/restore-drill-*.txt`
+- live secret-store proof: backend/worker container env no longer carry raw `ADMIN_TOKEN` or `DB_PASS`; Postgres now uses `POSTGRES_PASSWORD_FILE=/run/secrets/db_pass`
 
 ## Go / No-Go today
 
@@ -47,8 +48,8 @@ Why:
 | Telemetry | Expose latency, error rate, queue depth, connection count, ping/pong, and artifact throughput in dashboards. | Observability | Needs Re-Verify | Telemetry helpers exist, but the current dashboard proof is not fresh. |
 | Telemetry | Define and wire alert thresholds for queue pressure, latency spikes, rate-limit spikes, and OOM events. | SRE | Needs Re-Verify | Alert guidance exists in docs, but current alert wiring still needs confirmation. |
 | Telemetry | Continuously validate the artifact pipeline with smoke or equivalent relay verification. | QA | Verified (2026-04-09) | `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed on production with artifact `test-artifact-c6a0460b-1775764472035`. |
-| Security | Store secrets in a proper secret system and rotate them regularly. | Security | Needs Re-Verify | Policy/docs exist, but live secret-store verification is still pending. |
-| Security | Enforce backend startup failure without `ADMIN_TOKEN`, and keep unique tokens per environment. | Security | Needs Re-Verify | Code still blocks missing `ADMIN_TOKEN`, but environment-level token hygiene has not been freshly verified. |
+| Security | Store secrets in a proper secret system and rotate them regularly. | Security | Needs Re-Verify | File-backed runtime secrets are now live on the current host (`secrets/` -> `/run/secrets`), but the rotation cadence and environment-by-environment hygiene still need repeatable proof. |
+| Security | Enforce backend startup failure without `ADMIN_TOKEN`, and keep unique tokens per environment. | Security | Needs Re-Verify | Startup failure is now proven by `test/runtime-config.test.js` and the current `33/33` suite, but unique token hygiene across every environment still needs a dedicated review. |
 | Security | Enforce rate limiting, CORS, and player request authentication for the current build. | Security | Verified (2026-04-09) | Current suite passed `30/30`, including signed request acceptance, stale rejection, replay blocking, route auth coverage, and new logging/traceability checks. |
 | Security | Audit admin actions, worker events, and relay subscriptions for traceability. | Observability | Needs Re-Verify | Admin actions, purchases, artifact lifecycle, and session failures now emit structured backend/worker logs, but relay subscription traceability still needs a fresh launch-day verification. |
 | Runbooks | Keep restart, health, relay replay, and connectivity runbooks written and usable by a new operator. | Ops | Verified (2026-04-09) | `docs/relay-runbook.md`, `docs/incident-checklist.md`, `docs/restore-drill.md`, `docs/local-setup.md`, and `docs/quick-commands.md` are current and align with the present stack. |

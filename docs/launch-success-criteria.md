@@ -26,8 +26,8 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Artifact pipeline validation:** continuously run `npm run artifact-smoke` (or equivalent) so spawn→relay→persistence is verified per deploy; tie failure to deploy gating.
 
 ## Security & guardrails
-- **Secrets management:** store `ADMIN_TOKEN`, DB credentials, and relay configs in a vault; roll secrets regularly and do not hardcode in repo.  
-- **Token enforcement:** backend refuses to start without `ADMIN_TOKEN` (already in place). Ensure artifact smoke/CI uses unique tokens per environment.  
+- **Secrets management:** keep `ADMIN_TOKEN`, DB credentials, and signing secrets in file-backed secret mounts or a real secret manager; do not hardcode them in repo. The current stack supports `secrets/`, `/run/secrets`, `*_FILE`, and `JLS_SECRET_DIR`.  
+- **Token enforcement:** backend now fails fast with friendly startup messages when `ADMIN_TOKEN` is missing, and it also blocks startup if signed requests are required without `JLS_SIGNING_SECRET`. Ensure artifact smoke/CI uses unique tokens per environment.  
 - **Rate limiting & CORS:** enforce the 800 ms rate limit, validate CORS headers when the frontend is open to players, and ensure `X-JLS-Token`/`Authorization` flows cover both API and WebSocket (relay).  
 - **Auditability:** log admin artifact spawns, worker events, and relay subscriptions for traceability without storing raw tokens or request signatures.
 

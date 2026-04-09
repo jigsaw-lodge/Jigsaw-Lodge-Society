@@ -327,17 +327,18 @@ Retry = 3
 ENVIRONMENT
 ----------------------------------------
 
-- Copy `.env.example` to `.env` and populate `ADMIN_TOKEN`, `BASE_URL`, `WS_URL`, and the database credentials before running the API so the guard rails are active.
-- Docker Compose now forwards `${ADMIN_TOKEN}` into the backend and the process exits immediately if the token is missing, keeping the admin artifact endpoint shielded by configuration.
+- Copy `.env.example` to `.env` or create untracked files under `secrets/` (`admin_token`, `db_pass`, optional `jls_signing_secret`) before running the stack.
+- Docker Compose now mounts `./secrets` into `/run/secrets`, and the shared runtime guard loads secrets from `.env`, `secrets/`, `*_FILE`, or `JLS_SECRET_DIR` before backend/worker/relay startup.
 - Redis in Docker Compose binds to host port `6380` instead of `6379` so it never collides with the host `redis-server` already listening on `127.0.0.1:6379`.
 -`docker compose up` now spins up the `worker` service (`node workers/engineWorker.js`) alongside the API so artifact spawns, XP grants, and honey bookkeeping run automatically during local testing.
 
 ADMIN ARTIFACT TOOLING
 ----------------------------------------
 
-- Set `ADMIN_TOKEN` (strong secret) in `.env` before starting the API; the server now refuses to boot without it so the guarded artifact endpoint cannot be misconfigured.
+- Set `ADMIN_TOKEN` in `.env` or `secrets/admin_token` before starting the API; the server now refuses to boot without it and shows a friendly startup error instead of failing later.
 - POST `/api/admin/artifact/spawn` (header `X-Admin-Token` or `Authorization: Bearer <token>`) publishes a guarded artifact spawn event that feeds the worker, the artifact registry, and the WebSocket relay.
 - Use `npm run artifact-smoke` (same `ADMIN_TOKEN`, `BASE_URL`, `WS_URL`, and DB vars as the server) to triage artifact spawns, validate persistence, and watch the WebSocket/feed pipeline deliver the `artifact_spawn` payloads.
+- See `docs/secrets-and-startup.md` for the exact file names and startup guard behavior.
 - Refer to `docs/canonical-system-spec.md` and `docs/kiosk-menus.md` before tuning honey/order flow so values stay synced with the backend authority model.
 - The sample HUD page at `/frontend/index.html` mirrors `docs/kiosk-menus.md`, showing the canonical honey timers, cooldowns, multipliers, effect tooltips, and fixed order buttons that hit `/api/sync` so the backend remains the single source of truth.
 

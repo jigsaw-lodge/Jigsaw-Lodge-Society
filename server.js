@@ -1,5 +1,14 @@
 "use strict";
 
+let runtimeConfigReport;
+try {
+  const { initializeRuntimeConfig } = require("./services/runtimeConfig");
+  runtimeConfigReport = initializeRuntimeConfig("api");
+} catch (err) {
+  require("fs").writeSync(process.stderr.fd, `${err.message}\n`);
+  process.exit(1);
+}
+
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
@@ -29,6 +38,7 @@ const {
   detectAdminAuthSource,
   serializeError,
 } = require("./services/structuredLogging");
+const { emitRuntimeWarnings } = require("./services/runtimeConfig");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -54,13 +64,7 @@ const STATIC_CANDIDATES = [
 ].filter(Boolean);
 
 const logger = pino({ level: process.env.LOG_LEVEL || "info" }).child({ component: "api" });
-
-if (!ADMIN_TOKEN) {
-  logger.error(
-    "ADMIN_TOKEN must be set before starting the API so artifact tooling and guards are available (see docs/canonical-system-spec.md)."
-  );
-  process.exit(1);
-}
+emitRuntimeWarnings(runtimeConfigReport, logger);
 
 const STATIC_ROOT = determineStaticRoot();
 const redis = createRedisClient();

@@ -17,23 +17,43 @@ cd /opt/jigsaw_lodge/Jigsaw-Lodge-Society
 - Datastores: Postgres + Redis (Docker)
 - Second Life talks to the backend over HTTP.
 
-## 1) One Variable You Must Set
+## 1) Pick One Secret Setup
 
-The backend will not start without an admin token:
-- `ADMIN_TOKEN`
+You now have two easy supported paths:
 
-For local testing, you can use a simple token:
+### Option A - `.env` file
 
 ```sh
-export ADMIN_TOKEN=testtoken
+cp .env.example .env
 ```
+
+Then edit `.env` and set at least:
+- `ADMIN_TOKEN`
+- `DB_PASS`
+
+### Option B - local secret files (recommended)
+
+```sh
+mkdir -p secrets
+printf '%s\n' 'replace-with-a-strong-secret' > secrets/admin_token
+printf '%s\n' 'password' > secrets/db_pass
+```
+
+Optional signed-request secret:
+
+```sh
+printf '%s\n' 'replace-with-a-signing-secret' > secrets/jls_signing_secret
+```
+
+The stack scripts now auto-load `.env` and `secrets/`, so after this you usually do **not** need to prefix commands with `env ADMIN_TOKEN=...`.
+If you start with `.env`, the stack scripts will mirror the needed values into `secrets/` on the first run.
 
 ## 2) Fastest “Prove It Works” Loop (Hasan Daily Run)
 
 This is the command to run when you want confidence:
 
 ```sh
-env ADMIN_TOKEN=$ADMIN_TOKEN bash scripts/hasan-daily-run.sh
+bash scripts/hasan-daily-run.sh
 ```
 
 What it does:
@@ -50,7 +70,7 @@ What it does:
 Use this when you changed backend/worker/relay code and need new images:
 
 ```sh
-env ADMIN_TOKEN=$ADMIN_TOKEN bash scripts/stack-up.sh
+bash scripts/stack-up.sh
 ```
 
 Then verify:
@@ -58,13 +78,13 @@ Then verify:
 ```sh
 bash scripts/stack-health.sh
 bash scripts/test.sh
-env ADMIN_TOKEN=$ADMIN_TOKEN bash scripts/smoke.sh
+bash scripts/smoke.sh
 ```
 
 Optional load:
 
 ```sh
-env ADMIN_TOKEN=$ADMIN_TOKEN bash scripts/load.sh
+bash scripts/load.sh
 ```
 
 ## 4) Dev Mode (Hot Reload, Avoid Rebuild Loops)
@@ -74,7 +94,7 @@ Use this when you are editing code and want changes to apply immediately.
 Start dev stack:
 
 ```sh
-env ADMIN_TOKEN=$ADMIN_TOKEN bash scripts/dev-up.sh
+bash scripts/dev-up.sh
 ```
 
 Stop dev stack:
@@ -91,8 +111,15 @@ Notes:
 
 ### “ADMIN_TOKEN must be set”
 - Fix:
-  - `export ADMIN_TOKEN=testtoken`
-  - restart the backend (`bash scripts/stack-up.sh backend`)
+  - create `secrets/admin_token`
+  - or set `ADMIN_TOKEN` in `.env`
+  - then restart the backend: `bash scripts/stack-up.sh backend`
+
+### “... was expected from secrets/... but that file does not exist”
+- Cause: Hasan found a secret-file path but the file is missing.
+- Fix:
+  - create the missing file in `secrets/`
+  - or remove the matching `*_FILE` setting from `.env`
 
 ### “port 3000 is already allocated”
 - Cause: something else is bound to 3000 (often an old container).
@@ -127,5 +154,6 @@ SL HUD/Furniture -> HTTP -> Backend -> Redis -> Worker -> Relay -> HUD/Web
 
 - `docs/sprint.md` (Now / Next)
 - `docs/quick-commands.md` (copy/paste commands)
+- `docs/secrets-and-startup.md` (where secrets live and what startup errors mean)
 - `docs/risks.md` (top risks only)
 - `archive/YYYY_MM_DD/` (daily bundle)

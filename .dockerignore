@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+secrets/
+node_modules/
+archive/
+backups/
+logs/
+replay-dumps/

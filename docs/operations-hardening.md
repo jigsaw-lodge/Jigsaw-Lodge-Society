@@ -10,7 +10,8 @@ Before launch we need repeatable, observable, and secure operations. This checkl
 - **Restore verification:** run `scripts/restore-drill.sh` against the latest backup set. It spins up isolated Postgres and Redis containers, restores both backups, verifies core tables/keyspace, and writes a summary file under `backups/`.
 
 ## Secrets & tokens
-- **Vault integration:** store `ADMIN_TOKEN`, DB credentials, and relay configs in a secrets manager (HashiCorp Vault, AWS Secrets Manager, etc.). Do not commit them; instead load via `dotenv`/arg expansion at runtime.  
+- **File-backed secret store:** the stack now supports untracked secret files (`secrets/admin_token`, `secrets/db_pass`, `secrets/jls_signing_secret`, `secrets/jls_shared_token`) and mounted secret paths via `*_FILE` or `JLS_SECRET_DIR`. The compose stack mounts `./secrets` into containers at `/run/secrets`, and `services/runtimeConfig.js` / `scripts/stack-env.sh` load those files before boot.  
+- **Vault integration:** for fuller production hardening, let your deploy system populate those same file paths from a real secret manager (HashiCorp Vault, AWS Secrets Manager, cloud-init, etc.) instead of typing values into `.env`.  
 - **Rotations:** rotate `ADMIN_TOKEN` and database passwords on a quarterly cadence or immediately after a suspected leak. Document the steps (update secrets store, redeploy, restart services).  
 - **Access policies:** limit who can read tokens by enforcing least privilege, and record each rotation in your change log so we can roll back if needed.
 

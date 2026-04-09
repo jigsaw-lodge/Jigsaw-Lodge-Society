@@ -11,14 +11,15 @@ services:
     volumes:
       - ./:/app
       - jls_node_modules:/app/node_modules
+      - ./secrets:/run/secrets:ro
     command: ["bash", "-lc", "npm install && node --watch server.js"]
     environment:
-      # In dev, allow overriding shared token easily.
-      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
-      JLS_SIGNING_SECRET: ${JLS_SIGNING_SECRET}
+      JLS_SHARED_TOKEN_FILE: ${JLS_SHARED_TOKEN_FILE:-}
+      JLS_SIGNING_SECRET_FILE: ${JLS_SIGNING_SECRET_FILE:-}
       JLS_SIGNING_MAX_SKEW_SEC: ${JLS_SIGNING_MAX_SKEW_SEC:-120}
       JLS_SIGNING_NONCE_TTL_SEC: ${JLS_SIGNING_NONCE_TTL_SEC:-300}
       JLS_REQUIRE_SIGNED_REQUESTS: ${JLS_REQUIRE_SIGNED_REQUESTS:-0}
+      JLS_SECRET_DIR: /run/secrets
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
   worker:
@@ -27,9 +28,10 @@ services:
     volumes:
       - ./:/app
       - jls_node_modules:/app/node_modules
+      - ./secrets:/run/secrets:ro
     command: ["bash", "-lc", "npm install && node --watch workers/engineWorker.js"]
     environment:
-      JLS_SHARED_TOKEN: ${JLS_SHARED_TOKEN}
+      JLS_SECRET_DIR: /run/secrets
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
   relay:
@@ -38,8 +40,10 @@ services:
     volumes:
       - ./:/app
       - jls_node_modules:/app/node_modules
+      - ./secrets:/run/secrets:ro
     command: ["bash", "-lc", "npm install && node --watch wsrelay.js"]
     environment:
+      JLS_SECRET_DIR: /run/secrets
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
 volumes:

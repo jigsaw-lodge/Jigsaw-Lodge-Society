@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 "use strict";
 
-require("dotenv").config();
 const crypto = require("crypto");
 const { Pool } = require("pg");
 const fetch = globalThis.fetch || require("undici").fetch;
 const WebSocket = require("ws");
+const { initializeRuntimeConfig } = require("../services/runtimeConfig");
+
+initializeRuntimeConfig("artifact_smoke");
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;

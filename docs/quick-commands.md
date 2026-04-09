@@ -8,9 +8,18 @@ From the repo root:
 cd /opt/jigsaw_lodge/Jigsaw-Lodge-Society
 ```
 
+One-time setup:
+```sh
+mkdir -p secrets
+printf '%s\n' 'replace-with-a-strong-secret' > secrets/admin_token
+printf '%s\n' 'password' > secrets/db_pass
+```
+
+If you prefer `.env`, that also works. Hasan will mirror the needed values into `secrets/` on the first stack command.
+
 Bring stack up:
 ```sh
-env ADMIN_TOKEN=testtoken bash scripts/stack-up.sh
+bash scripts/stack-up.sh
 ```
 
 Check status:
@@ -30,7 +39,7 @@ bash scripts/stack-health.sh
 
 Artifact smoke:
 ```sh
-env ADMIN_TOKEN=testtoken bash scripts/smoke.sh
+bash scripts/smoke.sh
 ```
 
 API tests:
@@ -50,17 +59,17 @@ bash scripts/restore-drill.sh
 
 Load test (k6 via compose):
 ```sh
-env ADMIN_TOKEN=testtoken bash scripts/load.sh
+bash scripts/load.sh
 ```
 
 Hasan daily loop (health -> tests -> smoke -> optional load -> archive):
 ```sh
-env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
+bash scripts/hasan-daily-run.sh
 ```
 
 Hasan daily loop with backup + restore proof:
 ```sh
-RUN_RESTORE_DRILL=1 env ADMIN_TOKEN=testtoken bash scripts/hasan-daily-run.sh
+RUN_RESTORE_DRILL=1 bash scripts/hasan-daily-run.sh
 ```
 
 Show current "Now/Next" from sprint board:
@@ -92,5 +101,10 @@ curl -fsS https://ws.jigsawlodgesociety.com/health
 
 Dev mode (hot reload, avoid rebuild loops):
 ```sh
-env ADMIN_TOKEN=testtoken bash scripts/dev-up.sh
+bash scripts/dev-up.sh
+```
+
+Secret/store help:
+```sh
+sed -n '1,220p' docs/secrets-and-startup.md
 ```
