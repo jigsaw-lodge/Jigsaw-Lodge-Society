@@ -62,10 +62,10 @@ The goal is not to finish everything at once. The goal is to always know the nex
 34. `TODO` Add a deterministic winner/loser fallback for battle or ritual resolution edge cases.
 35. `DONE` Add tests that simulate session start, tick, timeout, and normal end.
 36. `DONE` Verify session cleanup removes stale Redis keys and avatar-session links.
-37. `TODO` Add clear feed events for ritual start, phase milestone, timeout, and completion.
+37. `DONE` Add clear feed events for ritual start, phase milestone, timeout, and completion.
 38. `TODO` Make drip rewards require the correct ritual prerequisite from the spec.
 39. `TODO` Make the worker save session duration, outcome, and reward summary consistently.
-40. `TODO` Write a “core loop checklist” doc you can use to manually verify the game loop.
+40. `DONE` Write a “core loop checklist” doc you can use to manually verify the game loop.
 
 ## Phase 5 - Economy, Honey, Challenges, And Rewards
 41. `TODO` Make honey durations and cooldowns match the intended design exactly.
@@ -132,7 +132,7 @@ The goal is not to finish everything at once. The goal is to always know the nex
 92. `TODO` Add automated tests for schema drift and migration safety.
 93. `TODO` Run and record a real `k6` load test once the tool is installed.
 94. `TODO` Run and record a fresh pub/sub benchmark after load-test setup is complete.
-95. `TODO` Create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
+95. `DONE` Create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
 96. `DONE` Rewrite the launch checklist so “Done” only means currently verified, not historically attempted.
 97. `TODO` Create a content roadmap for new rituals, cosmetics, artifacts, and social events after launch.
 98. `TODO` Define the top 5 metrics that tell you if the game is becoming #1, like retention, concurrent users, rituals per day, and conversion.
@@ -143,15 +143,15 @@ The goal is not to finish everything at once. The goal is to always know the nex
 If you want the smartest immediate sequence, do these next:
 
 1. Task 80 - record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-2. Task 95 - create a “go / no-go” dashboard page or checklist using current health, smoke, and uptime data.
-3. Task 93 - run and record a real `k6` load test once the tool is installed.
-4. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
-5. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
-6. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
-7. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
-8. Task 64 - make `/api/world` polling cadence match the overlay guidance.
-9. Task 65 - hook challenge, ritual, and honey state into the frontend UI.
-10. Task 66 - build a simple player dashboard showing XP, level, rituals, pentacles, and active boosts.
+2. Task 93 - run and record a real `k6` load test once the tool is installed.
+3. Task 94 - run and record a fresh pub/sub benchmark after load-test setup is complete.
+4. Task 75 - verify zone modules report presence and transitions correctly once their source is exported.
+5. Task 76 - verify artifact-triggering objects send the right payloads and cannot spoof rewards.
+6. Task 90 - build a tiny internal admin panel or script bundle for common support and recovery actions.
+7. Task 64 - make `/api/world` polling cadence match the overlay guidance.
+8. Task 65 - hook challenge, ritual, and honey state into the frontend UI.
+9. Task 66 - build a simple player dashboard showing XP, level, rituals, pentacles, and active boosts.
+10. Task 91 - add automated tests for the most important worker logic paths.
 
 ## Readiness rule discovered during live validation
 - Automated and manual artifact tests must use isolated zones and clean up spawned artifacts when the check is done.
@@ -169,6 +169,10 @@ If you want the smartest immediate sequence, do these next:
 ## Readiness rule discovered during the 2026-04-09 SL source audit
 - We can honestly mark the checked-in HUD contract audit complete, but we should not claim the full SL object suite is source-audited until the chair, zone beacon, honey kiosk, order console, and other object scripts are exported into the repo.
 - The new minimal HUD is reference-ready for backend verification, but it still needs a first real compile/run pass in Second Life before we call it SL-verified.
+
+## Readiness rule discovered during the 2026-04-09 LSL package pass
+- Do not bury the actual in-world requirements in chat history. Keep one plain-English package manifest listing every SL test object, endpoint, and payload we need for honest full-game verification.
+- Never place `ADMIN_TOKEN` inside distributed public objects. Keep admin artifact/session/battle helpers owner-only and sandbox-only.
 
 ## Readiness rule discovered during structured logging work
 - Audit trails must never store raw secrets. Do not place `ADMIN_TOKEN`, shared SL tokens, or request signatures inside event metadata or logs.

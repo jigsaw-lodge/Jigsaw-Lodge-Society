@@ -10,6 +10,8 @@ Goal: prove SL -> HTTP -> Node -> Redis -> Worker -> WebSocket -> HUD/Web is fun
   - or `lslexternals-2026-04-08/jls_hud_minimal_io_v1.ll`
 - You have the object setup guide open:
   - `docs/sl-object-setup-guide.md`
+- You have the full SL package manifest open:
+  - `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt`
 - If signing is enabled:
   - your object sends `timestamp`, `request_id`, and `signature`
   - you have `docs/sl-request-signing.md` open while testing

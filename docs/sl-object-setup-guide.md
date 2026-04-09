@@ -8,6 +8,9 @@ Use this guide when you are rezzing:
 - the feed board or event feedback object
 - optional honey / order / zone objects
 
+For the full "what scripts do I actually need?" manifest, also keep:
+- [JLS_FULL_TESTING_PACKAGE.txt](/opt/jigsaw_lodge/Jigsaw-Lodge-Society/lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt)
+
 ## 1. What must already be green
 
 Before you place anything in Second Life, confirm:

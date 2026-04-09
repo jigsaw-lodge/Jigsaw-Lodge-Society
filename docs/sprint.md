@@ -4,18 +4,19 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 95: Build the go/no-go dashboard/checklist from the health, smoke, alert, and release-gate evidence we now have.
 - `TODO` Task 93-94: Run and archive the current-build load and pub/sub proof sweep.
+- `TODO` Task 90: Build a tiny internal admin panel or script bundle for common support and recovery actions.
 
 ## Next (max 5)
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
 - `TODO` When ready for live signed SL traffic, set `JLS_SIGNING_SECRET` in deploy env, update the objects, then enable `JLS_REQUIRE_SIGNED_REQUESTS=1`.
-- `TODO` Task 90: Build a tiny internal admin panel or script bundle for common support and recovery actions.
 - `TODO` Maintain test hygiene: use isolated zones and expire test artifacts after validation.
 - `TODO` Task 64-65: keep tightening world polling cadence and challenge/honey visibility on the frontend.
+- `TODO` Use `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt` as the export checklist for the remaining SL object source files.
 
 ## Blocked
 - `WAITING` Task 75-76 cannot be source-audited honestly until the actual chair, zone beacon, artifact object, kiosk, and console scripts are exported into the repo.
+- `WAITING` The new full LSL package manifest is ready, but the non-HUD object scripts still need to be exported or built from that manifest before Hasan can mark the full SL suite source-complete.
 
 ## Done Today
 - `DONE` Task 7: beginner local setup guide (`docs/local-setup.md`).
@@ -77,3 +78,7 @@ This is the single page to look at every day.
 - `DONE` Task 68: the website now shows a clear relay reconnecting/error state through the observer pulse and relay card, and the live domain was redeployed with that surface.
 - `DONE` Website truth rule: public observer surfaces must not mix fake gossip or random zone noise into live operational panels; decorative atmosphere is fine, but the dashboard itself must stay grounded in real relay and snapshot data.
 - `DONE` Task 70: `docs/frontend-deploy.md` is now a true beginner deploy guide with one-command publish, exact verification steps, and plain-English recovery notes for the live site.
+- `DONE` Task 37: ritual start, phase-15, timeout, and completion feed events are now explicitly locked by the relay runbook and tests.
+- `DONE` Task 40: added `docs/core-loop-checklist.md` so the manual game loop can be verified the same way every time.
+- `DONE` Task 95: added `docs/go-no-go-board.md` so the founder launch call matches current health, smoke, and SL proof status.
+- `DONE` Added `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt`, the plain-English LSL manifest for every object/script needed to test the whole MMO.

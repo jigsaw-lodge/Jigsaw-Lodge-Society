@@ -1,0 +1,353 @@
+JIGSAW LODGE SOCIETY
+FULL SECOND LIFE TESTING PACKAGE
+2026-04-09
+
+PURPOSE
+-------
+This file is the plain-English manifest for the LSL package needed to test
+the full MMO against the current backend.
+
+Use it when:
+- exporting the missing in-world scripts into the repo
+- asking ChatGPT to help write or repair one object at a time
+- deciding which SL objects are required for a real end-to-end test
+
+Current truth:
+- the backend is authoritative
+- LSL is input/output only
+- signed requests are preferred
+- shared-token mode is a migration fallback only
+- only two HUD scripts are currently checked into the repo
+
+CHECKED INTO THE REPO TODAY
+---------------------------
+1. jls_hud_minimal_io_v1.ll
+   Purpose:
+   - smallest honest backend test HUD
+   - polls /api/event with action hud_tick
+   - renders state returned by the backend
+
+2. jls_hud_v68.ll
+   Purpose:
+   - themed HUD script
+   - used after the minimal HUD proves the backend path is healthy
+
+SCRIPTS STILL NEEDED FOR FULL MMO TESTING
+-----------------------------------------
+1. JLS_CHAIR_SESSION_ANCHOR.lsl
+   Object:
+   - one AVsitter/furniture anchor
+   Endpoints:
+   - POST /api/session/start
+   - POST /api/session/tick
+   - POST /api/session/end
+   Required fields:
+   - avatar
+   - partner
+   - object_id
+   - zone
+   Recommended fields:
+   - order
+   - watchers
+   - group_tag
+   Tests unlocked:
+   - session start
+   - session ticks
+   - phase milestones
+   - ritual completion
+   - timeout/stand cleanup
+
+2. JLS_ZONE_BEACON.lsl
+   Object:
+   - zone presence beacon or parcel sensor
+   Endpoint:
+   - POST /api/sync
+   Required fields:
+   - avatar
+   - zone
+   Recommended fields:
+   - x
+   - y
+   - z
+   - watchers
+   - object_id
+   Tests unlocked:
+   - zone presence
+   - zone transitions
+   - watcher counts
+   - world snapshot zone context
+
+3. JLS_ORDER_CONSOLE.lsl
+   Object:
+   - player order picker
+   Endpoint:
+   - POST /api/sync
+   Required fields:
+   - avatar
+   - order
+   Recommended fields:
+   - zone
+   - group_tag
+   Allowed order keys:
+   - architect
+   - eye
+   - black_sun
+   - neutral
+   Public names:
+   - Order of the Architects
+   - Order of the Illuminated Eye
+   - Order of the Black Sun
+   - Neutral Tide
+   Tests unlocked:
+   - order assignment
+   - battle bar identity
+   - zone pressure context
+
+4. JLS_HONEY_KIOSK.lsl
+   Object:
+   - honey use console
+   Endpoint:
+   - POST /api/honey/use
+   Required fields:
+   - avatar
+   - type
+   Allowed honey types:
+   - dev
+   - poison
+   - royal
+   Tests unlocked:
+   - honey apply
+   - cooldown and rejection paths
+   - HUD/world feedback for boosts
+
+5. JLS_CHALLENGE_BOARD.lsl
+   Object:
+   - challenge progress and claim board
+   Endpoints:
+   - GET /api/challenges?avatar=<uuid>
+   - POST /api/challenges/claim
+   Required claim fields:
+   - avatar
+   - tier
+   Allowed tiers:
+   - daily
+   - weekly
+   - monthly
+   - quarterly
+   Tests unlocked:
+   - challenge progress visibility
+   - claim success
+   - double-claim rejection
+
+6. JLS_PURCHASE_KIOSK.lsl
+   Object:
+   - economy purchase test object
+   Endpoint:
+   - POST /api/purchase
+   Required fields:
+   - avatar
+   - amount
+   - type
+   Allowed purchase types:
+   - l
+   - pentacle
+   Tests unlocked:
+   - treasury increments
+   - pentacle grants
+   - purchase feed/logging
+
+7. JLS_WORLD_FEED_DISPLAY.lsl
+   Object:
+   - wall board or observer board
+   Endpoint:
+   - GET /api/world
+   Reads:
+   - world.events
+   - world.battle
+   - world.metrics
+   - world.artifacts
+   Tests unlocked:
+   - visible world feed
+   - battle state
+   - snapshot freshness
+   - live operator verification
+
+8. JLS_EVENT_FEEDBACK_LAYER.lsl
+   Object:
+   - glow, pulse, particle, or local feedback object
+   Endpoint:
+   - GET /api/world
+   Tests unlocked:
+   - ritual visibility
+   - surge visibility
+   - battle visibility
+   - artifact visibility
+
+9. JLS_LEADERBOARD_BOARD.lsl
+   Object:
+   - board for top players and top pairs
+   Endpoint:
+   - GET /api/world
+   Reads:
+   - world.players
+   - world.pairs
+   Tests unlocked:
+   - progression display
+   - social visibility
+
+10. JLS_ADMIN_ARTIFACT_UTILITY.lsl
+    Object:
+    - owner-only test utility
+    Endpoints:
+    - POST /api/admin/artifact/spawn
+    - GET /api/admin/artifacts
+    - GET /api/admin/artifact/:artifactId
+    - POST /api/admin/artifact/:artifactId/expire
+    Tests unlocked:
+    - artifact spawn
+    - artifact expiry
+    - world snapshot artifact list
+    Important:
+    - do not distribute ADMIN_TOKEN in public objects
+    - keep this object owner-only and sandbox-only
+
+11. JLS_ADMIN_SESSION_UTILITY.lsl
+    Object:
+    - owner-only session helper
+    Endpoints:
+    - POST /api/admin/session/fast-forward
+    - POST /api/admin/session/cleanup-stale
+    Tests unlocked:
+    - phase-15 verification without a long wait
+    - timeout cleanup
+    - stale session recovery
+    Important:
+    - do not distribute ADMIN_TOKEN in public objects
+
+12. JLS_BATTLE_ARBITER_UTILITY.lsl
+    Object:
+    - owner-only battle test tool
+    Endpoint:
+    - POST /api/battle/resolve
+    Required fields:
+    - winner
+    - loser
+    Tests unlocked:
+    - pentacle winner/loser flow
+    - battle_result feed
+    - observer board battle updates
+
+AUTH AND CONFIG FOR EVERY SCRIPT
+--------------------------------
+Preferred auth mode:
+- timestamp
+- request_id
+- signature
+
+Fallback auth mode:
+- token
+
+Shared config values:
+- API_EVENT_URL = https://jigsawlodgesociety.com/api/event
+- API_BASE_URL = https://api.jigsawlodgesociety.com/api
+- WORLD_URL = https://api.jigsawlodgesociety.com/api/world
+- RELAY_URL = wss://ws.jigsawlodgesociety.com
+- FALLBACK_HTTP = http://89.167.94.250:3000
+
+REQUEST RULES
+-------------
+- every object should send avatar
+- signed requests should also send timestamp, request_id, and signature
+- objects should throttle and retry with backoff
+- do not let public objects hold ADMIN_TOKEN
+- use isolated test zones, not 0:0
+
+MINIMUM PACKAGE FOR THE FIRST HONEST PASS
+-----------------------------------------
+If budget or time is tight, start with only:
+1. jls_hud_minimal_io_v1.ll
+2. JLS_CHAIR_SESSION_ANCHOR.lsl
+3. JLS_WORLD_FEED_DISPLAY.lsl
+
+That proves:
+- HUD -> backend
+- furniture -> session engine
+- worker -> world snapshot -> visible feed
+
+FULL PACKAGE FOR WHOLE-GAME FUNCTION TESTING
+--------------------------------------------
+To test the whole MMO feature surface, use:
+- minimal or themed HUD
+- chair session anchor
+- zone beacon
+- order console
+- honey kiosk
+- challenge board
+- purchase kiosk
+- world feed display
+- event feedback layer
+- leaderboard board
+- admin artifact utility
+- admin session utility
+- battle arbiter utility
+
+COVERAGE MAP
+------------
+Core ritual loop:
+- HUD
+- chair session anchor
+- world feed display
+
+Zone and territory:
+- zone beacon
+- order console
+- world feed display
+
+Economy:
+- honey kiosk
+- challenge board
+- purchase kiosk
+- HUD
+
+Artifacts:
+- admin artifact utility
+- event feedback layer
+- world feed display
+
+Battle:
+- battle arbiter utility
+- world feed display
+- event feedback layer
+
+Support and troubleshooting:
+- admin session utility
+- world feed display
+
+WHAT TO EXPORT INTO GITHUB NEXT
+-------------------------------
+To unblock honest source review of the full SL suite, export these scripts:
+- JLS_CHAIR_SESSION_ANCHOR.lsl
+- JLS_ZONE_BEACON.lsl
+- JLS_ORDER_CONSOLE.lsl
+- JLS_HONEY_KIOSK.lsl
+- JLS_CHALLENGE_BOARD.lsl
+- JLS_PURCHASE_KIOSK.lsl
+- JLS_WORLD_FEED_DISPLAY.lsl
+- JLS_EVENT_FEEDBACK_LAYER.lsl
+- JLS_LEADERBOARD_BOARD.lsl
+- JLS_ADMIN_ARTIFACT_UTILITY.lsl
+- JLS_ADMIN_SESSION_UTILITY.lsl
+- JLS_BATTLE_ARBITER_UTILITY.lsl
+
+USE THIS FILE WITH THESE DOCS
+-----------------------------
+- docs/hud-contract.md
+- docs/sl-request-signing.md
+- docs/sl-object-setup-guide.md
+- docs/sl-qa-checklist.md
+- docs/sl-troubleshooting.md
+
+FINAL RULE
+----------
+If an object can award value, change shared state, or trigger admin powers,
+the backend must stay authoritative and the object must only send input.

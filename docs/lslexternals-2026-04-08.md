@@ -6,6 +6,7 @@ Bundle of client-side scripts/assets that Second Life uses to exercise the backe
 
 | Item | File/Script | Purpose |
 | --- | --- | --- |
+| Package manifest | `JLS_FULL_TESTING_PACKAGE.txt` | Plain-English package list of every script/object needed to test the whole MMO, including the missing scripts that still need export/build. |
 | HUD | `JLS HUD v68` (wearable) | Sends `hud_tick` data, displays XP/ritual/bond state, applies presence animations, and drives weighted boot timing. |
 | HUD (minimal) | `jls_hud_minimal_io_v1.ll` | Smallest reference HUD for backend verification; polls `/api/event`, renders returned state, can switch from shared-token mode to signed mode, and is source-reviewed pending first in-world compile proof. |
 | Chair | `JLS chair event anchor` | Sends `sit`/`unsit` events to `/event` for session control; backend now bridges those into `session_start` / `session_end`. |
@@ -25,6 +26,7 @@ Bundle of client-side scripts/assets that Second Life uses to exercise the backe
 4. Use `/api/world` (or the event feedback object) to verify watchers, rituals, battles, and honey applications display correctly. Keep logs/screenshots for QA signoff.
 5. Prefer signed requests for HUDs/chairs using `docs/sl-request-signing.md`; keep the shared token only as a migration fallback.
 6. For placement help and recovery steps, keep `docs/sl-object-setup-guide.md` and `docs/sl-troubleshooting.md` open during the pass.
+7. For the full test-object manifest, use `lslexternals-2026-04-08/JLS_FULL_TESTING_PACKAGE.txt`.
 
 ## Versioning
 
