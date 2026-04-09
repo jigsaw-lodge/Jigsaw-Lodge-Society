@@ -19,6 +19,7 @@ Rule:
 - backend suite: `33/33` passing on the current build
 - backups + restore drill: `REDIS_PORT=6380 bash scripts/backup-datastores.sh` then `bash scripts/restore-drill.sh` passed; latest summary is under `backups/restore-drill-*.txt`
 - live secret-store proof: backend/worker container env no longer carry raw `ADMIN_TOKEN` or `DB_PASS`; Postgres now uses `POSTGRES_PASSWORD_FILE=/run/secrets/db_pass`
+- weekly release gate: `bash scripts/weekly-release-check.sh` passed on the current build; latest report is `logs/release-checks/weekly-release-20260409T210922Z.txt`
 
 ## Go / No-Go today
 
@@ -46,7 +47,7 @@ Why:
 | Automation | Script DB backups, Redis backups, schema migrations, and environment provisioning. | Infrastructure | Needs Re-Verify | Fresh backup + restore drill passed on 2026-04-09, but the row still includes environment provisioning, so keep this as `Needs Re-Verify` until that proof is refreshed too. |
 | Telemetry | Centralize backend, worker, and relay logs with structured metadata and 7+ day retention. | Observability | Needs Re-Verify | Backend and worker structured logs are now live and covered by the `30/30` suite, but central aggregation and 7+ day retention still need fresh verification. |
 | Telemetry | Expose latency, error rate, queue depth, connection count, ping/pong, and artifact throughput in dashboards. | Observability | Needs Re-Verify | Telemetry helpers exist, but the current dashboard proof is not fresh. |
-| Telemetry | Define and wire alert thresholds for queue pressure, latency spikes, rate-limit spikes, and OOM events. | SRE | Needs Re-Verify | Alert guidance exists in docs, but current alert wiring still needs confirmation. |
+| Telemetry | Define and wire alert thresholds for queue pressure, latency spikes, rate-limit spikes, and OOM events. | SRE | Needs Re-Verify | The current local alert pack now runs and passed on 2026-04-09 (`bash scripts/alert-check.sh` / `bash scripts/weekly-release-check.sh`), but central log-plane deployment and explicit rate-limit-spike alerting still need fresh production proof. |
 | Telemetry | Continuously validate the artifact pipeline with smoke or equivalent relay verification. | QA | Verified (2026-04-09) | `env ADMIN_TOKEN=... bash scripts/smoke.sh` passed on production with artifact `test-artifact-c6a0460b-1775764472035`. |
 | Security | Store secrets in a proper secret system and rotate them regularly. | Security | Needs Re-Verify | File-backed runtime secrets are now live on the current host (`secrets/` -> `/run/secrets`), but the rotation cadence and environment-by-environment hygiene still need repeatable proof. |
 | Security | Enforce backend startup failure without `ADMIN_TOKEN`, and keep unique tokens per environment. | Security | Needs Re-Verify | Startup failure is now proven by `test/runtime-config.test.js` and the current `33/33` suite, but unique token hygiene across every environment still needs a dedicated review. |

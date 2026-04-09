@@ -22,6 +22,11 @@ Bring stack up:
 bash scripts/stack-up.sh
 ```
 
+Prepare local secret files from `.env` / shell values:
+```sh
+bash scripts/prepare-secrets.sh
+```
+
 Check status:
 ```sh
 bash scripts/stack-ps.sh
@@ -50,6 +55,16 @@ bash scripts/test.sh
 Create fresh datastore backups on the production-style host ports:
 ```sh
 REDIS_PORT=6380 bash scripts/backup-datastores.sh
+```
+
+Evaluate current alerts from health, telemetry, relay logs, and container state:
+```sh
+bash scripts/alert-check.sh
+```
+
+Run the full weekly release gate:
+```sh
+bash scripts/weekly-release-check.sh
 ```
 
 Run the one-command restore drill against the latest backups:

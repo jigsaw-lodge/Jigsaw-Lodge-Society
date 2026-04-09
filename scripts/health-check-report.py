@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="Summarize synthetic health-check uptime from logs.")
@@ -14,14 +14,14 @@ log_path = Path(args.log)
 if not log_path.exists():
     raise SystemExit(f"log file {log_path} does not exist")
 
-window = datetime.utcnow() - timedelta(days=args.days)
+window = datetime.now(UTC) - timedelta(days=args.days)
 stats = {}
 recent_failures = {}
 for raw in log_path.read_text().splitlines():
     if not raw:
         continue
     payload = json.loads(raw)
-    ts = datetime.strptime(payload["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+    ts = datetime.strptime(payload["timestamp"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     if ts < window:
         continue
     label = payload.get("label", "unknown")
@@ -38,7 +38,7 @@ if not stats:
     print(f"(no health checks recorded in the last {args.days} days)")
     raise SystemExit(1)
 
-print(f"Health-check uptime report ({window.strftime('%Y-%m-%d')} to {datetime.utcnow().strftime('%Y-%m-%d')}):")
+print(f"Health-check uptime report ({window.strftime('%Y-%m-%d')} to {datetime.now(UTC).strftime('%Y-%m-%d')}):")
 for label, rec in sorted(stats.items()):
     success = rec["ok"]
     total = rec["total"]

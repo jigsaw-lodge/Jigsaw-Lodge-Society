@@ -5,3 +5,5 @@ backups/
 replay-dumps/
 logs/
 secrets/
+__pycache__/
+*.pyc

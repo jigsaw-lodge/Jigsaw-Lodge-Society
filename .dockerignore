@@ -7,3 +7,5 @@ archive/
 backups/
 logs/
 replay-dumps/
+__pycache__/
+*.pyc

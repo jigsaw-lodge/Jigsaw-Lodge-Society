@@ -10,8 +10,10 @@ on:
 
 env:
   ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+  DB_PASS: password
   BASE_URL: http://localhost:3000
   WS_URL: ws://relay:3010
+  COMPOSE_PROJECT_NAME: jls
 
 jobs:
   artifact-smoke:
@@ -28,9 +30,11 @@ jobs:
       - name: Ensure Docker Compose is available
         run: docker compose version
 
+      - name: Prepare secret files
+        run: bash scripts/prepare-secrets.sh
+
       - name: Build and launch stack
-        run: |
-          COMPOSE_PROJECT_NAME=jls ADMIN_TOKEN=${{ env.ADMIN_TOKEN }} docker compose up --build -d
+        run: docker compose up --build -d
 
       - name: Wait for API to become healthy
         run: |
@@ -45,20 +49,19 @@ jobs:
           exit 1
 
       - name: Run artifact-smoke validation
-        run: |
-          COMPOSE_PROJECT_NAME=jls ADMIN_TOKEN=${{ env.ADMIN_TOKEN }} docker compose exec -T backend sh -c 'cd /app && ADMIN_TOKEN=${{ env.ADMIN_TOKEN }} BASE_URL=${{ env.BASE_URL }} WS_URL=${{ env.WS_URL }} node scripts/run-artifact-smoke.js'
+        run: bash scripts/smoke.sh
 
       - name: Collect replay dumps
         if: ${{ always() }}
         run: |
           mkdir -p replay-dumps
-          if COMPOSE_PROJECT_NAME=jls docker ps --filter name=jls_backend --format '{{.Names}}' | grep -q jls_backend; then
-            COMPOSE_PROJECT_NAME=jls docker cp jls_backend:/app/replay-dumps replay-dumps || true
+          if docker ps --filter name=jls_backend --format '{{.Names}}' | grep -q jls_backend; then
+            docker cp jls_backend:/app/replay-dumps replay-dumps || true
           fi
 
       - name: Tear down stack
         if: ${{ always() }}
-        run: COMPOSE_PROJECT_NAME=jls ADMIN_TOKEN=${{ env.ADMIN_TOKEN }} docker compose down -v
+        run: docker compose down -v
 
       - name: Upload replay dumps
         if: ${{ always() }}

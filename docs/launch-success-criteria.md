@@ -17,12 +17,14 @@ This checklist describes the measurable, cross-team goals that must be met befor
 - **Build & deploy:** container images for backend, worker, and relay must be reproducibly built (`docker compose build --pull`, Docker Buildx preferred), signed, and pushed to a registry with version tags.  
 - **Rollouts:** deploy via rolling updates with health checks (`/api/health`, `/health`) and auto-restart policies. Include automated rollback if smoke test or relay connectivity fails.  
 - **CI gating:** every push/PR runs `Artifact Smoke CI` (GitHub Action) which spins up the stack, runs `npm run artifact-smoke`, and tears the environment down; failures block merges until the pipeline proves spawn→relay→persistence still works.  
+- **Weekly release gate:** run `bash scripts/weekly-release-check.sh` (or the matching GitHub Action) so health, tests, smoke, telemetry, alerts, replay guidance, and rollback guidance are captured together in one dated report.  
 - **Infrastructure as code:** script db/redis backups, schema migrations (`init.sql` + any new migrations), and environment provisioning so new environments mirror prod.
 
 ## Telemetry & alerting
 - **Logging:** centralize logs (backend, worker, relay) with structured metadata (level, component, event, outcome, route, client info) and retain at least 7 days. Keep raw secrets out of logs and event metadata.  
 - **Metrics:** expose latency, error rate, queue depth, connection count, CPU/memory, WebSocket ping/pong, and artifact pipeline throughput.  
 - **Alerts:** trigger on thresholds such as queue >80% length, latency ≥400 ms, rate limit rejections spiking, or OOM (code 137) in containers.
+- **Current local alert pack:** the current codebase now evaluates API/worker/relay health, latency, Redis event-subscriber count, relay disconnect spikes, restart count, and OOMKilled state through `bash scripts/alert-check.sh`. Central log-plane alerts still need their own deployment-specific wiring.
 - **Artifact pipeline validation:** continuously run `npm run artifact-smoke` (or equivalent) so spawn→relay→persistence is verified per deploy; tie failure to deploy gating.
 
 ## Security & guardrails

@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$ROOT_DIR/scripts/stack-env.sh"
+
 BACKEND_HEALTH=${BACKEND_HEALTH:-http://localhost:3000/api/health}
 RELAY_HEALTH=${RELAY_HEALTH:-http://localhost:3010/health}
 WORKER_HEARTBEAT=${WORKER_HEARTBEAT:-http://localhost:3000/api/worker/heartbeat}
 REDIS_HOST=${REDIS_HOST:-127.0.0.1}
 REDIS_PORT=${REDIS_PORT:-6380}
 EVENT_LIST_KEY=${EVENT_LIST_KEY:-jls:events}
+EVENT_CHANNEL=${EVENT_CHANNEL:-events_channel}
 CONTAINERS=(jls_backend jls_worker jls_relay)
 TELEMETRY_LOG=${TELEMETRY_LOG:-logs/telemetry-metrics.log}
 
@@ -39,7 +43,27 @@ queue_depth=$(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" LLEN "$EVENT_LIST_KEY"
 redis_rc=$?
 set -e
 if [ $redis_rc -ne 0 ]; then
+  set +e
+  queue_depth=$(compose exec -T redis redis-cli LLEN "$EVENT_LIST_KEY" 2>/dev/null)
+  redis_rc=$?
+  set -e
+fi
+if [ $redis_rc -ne 0 ]; then
   queue_depth="unknown"
+fi
+
+set +e
+event_subscribers=$(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBSUB NUMSUB "$EVENT_CHANNEL" 2>/dev/null | tail -n 1)
+subscriber_rc=$?
+set -e
+if [ $subscriber_rc -ne 0 ]; then
+  set +e
+  event_subscribers=$(compose exec -T redis redis-cli PUBSUB NUMSUB "$EVENT_CHANNEL" 2>/dev/null | tail -n 1)
+  subscriber_rc=$?
+  set -e
+fi
+if [ $subscriber_rc -ne 0 ] || [[ -z "${event_subscribers:-}" ]]; then
+  event_subscribers="unknown"
 fi
 
 set +e
@@ -58,7 +82,8 @@ PY
   <<<"$stats_raw")
 fi
 
-relay_clients=$(python3 - <<PY
+relay_body=$(curl -s --max-time 5 "$RELAY_HEALTH" || true)
+relay_clients=$(printf '%s' "$relay_body" | python3 - <<PY
 import json, sys
 body = sys.stdin.read()
 if not body.strip():
@@ -67,8 +92,8 @@ else:
     data = json.loads(body)
     print(data.get("clients"))
 PY
-$(curl -s --max-time 5 "$RELAY_HEALTH"))
+)
 
 cat <<JSON >> "$TELEMETRY_LOG"
-{"timestamp":"$timestamp","backend_latency":"$backend_latency","backend_http_code":$backend_http_code,"backend_exit":$backend_exit,"worker_latency":"$worker_latency","worker_http_code":$worker_http_code,"worker_exit":$worker_exit,"queue_depth":"$queue_depth","relay_clients":${relay_clients:-null},"container_stats":$container_stats}
+{"timestamp":"$timestamp","backend_latency":"$backend_latency","backend_http_code":$backend_http_code,"backend_exit":$backend_exit,"worker_latency":"$worker_latency","worker_http_code":$worker_http_code,"worker_exit":$worker_exit,"queue_depth":"$queue_depth","event_subscribers":"$event_subscribers","relay_clients":${relay_clients:-null},"container_stats":$container_stats}
 JSON

@@ -4,8 +4,8 @@ This is the single page to look at every day.
 
 ## Now (max 3)
 - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-- `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
 - `TODO` Task 89: Add the plain-English security review doc now that secrets, signing, and audit behavior are much clearer.
+- `TODO` Task 95: Build the go/no-go dashboard/checklist from the health, smoke, alert, and release-gate evidence we now have.
 
 ## Next (max 5)
 - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -67,3 +67,7 @@ This is the single page to look at every day.
 - `DONE` Task 81: live stack secrets now live in the file-backed store (`secrets/` -> `/run/secrets`), backend/worker no longer carry raw `ADMIN_TOKEN` or `DB_PASS` in container env, Postgres now uses `POSTGRES_PASSWORD_FILE`, and the operator guide is in `docs/secrets-and-startup.md`.
 - `DONE` Task 82: API, worker, relay, and artifact smoke now fail fast with beginner-friendly config errors through `services/runtimeConfig.js`; proof is in `test/runtime-config.test.js`, full suite `33/33`, and fresh production health + smoke on the rebuilt stack.
 - `DONE` Security hardening rule: `.env` and `secrets/` are now excluded from Docker build context via `.dockerignore` so runtime secrets are mounted, not baked into images.
+- `DONE` Task 87: alert rules are now executable through `scripts/alert-check.sh` / `scripts/alert-report.py`, with host-side health logs, telemetry snapshots, relay disconnect sampling, and container restart/OOM checks.
+- `DONE` Task 88: weekly release gating is now one command via `scripts/weekly-release-check.sh`, backed by `docs/weekly-release-checklist.md`, a scheduled GitHub workflow, and a passing live report at `logs/release-checks/weekly-release-20260409T210922Z.txt`.
+- `DONE` CI compatibility hardening: `scripts/prepare-secrets.sh` plus `stack-env.sh` now make the secret-file flow work in GitHub Actions, and `artifact-smoke.yml` was updated to use it.
+- `DONE` Ops truth rule: for host-side observability, write health logs to the host repo, not only inside containers, or alert/report tooling will silently miss the real signal.

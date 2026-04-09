@@ -8,7 +8,11 @@ COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 LOCAL_SECRET_DIR_DEFAULT="$ROOT_DIR/secrets"
 
 compose() {
-  docker-compose -f "$COMPOSE_FILE" "$@"
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose -f "$COMPOSE_FILE" "$@"
+    return
+  fi
+  docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 load_dotenv_if_present() {
