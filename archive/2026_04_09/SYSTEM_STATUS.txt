@@ -213,3 +213,65 @@ redis_events_type=list
 redis_events_len=100
 status=ok
 
+Jigsaw Lodge Society - Daily Archive
+UTC date: 2026-04-09T20:56:18Z
+
+Stack hint:
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml ps
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
+
+Latest backup manifest:
+backup_utc=2026-04-09T20:34:49Z
+postgres_source=container:jls_db
+postgres_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/postgres-20260409T203439Z.dump
+redis_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/redis-20260409T203439Z.rdb
+pg_dump_version=16.13-0ubuntu0.24.04.1)
+redis_cli_version=7.0.15
+postgres_sha256=d6d84453fc8222cc1e1b6eabcf799b465242a79a8e54bee267157e31fa5ca986
+redis_sha256=9a5896ee7627999b7f98bbcd51ef27a85c11b85681cdb77237357a90d10bb5da
+
+Latest restore drill summary:
+restore_drill_utc=2026-04-09T20:35:29Z
+postgres_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/postgres-20260409T203439Z.dump
+redis_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/redis-20260409T203439Z.rdb
+postgres_tables=8
+postgres_events=1096624
+postgres_players=6276
+postgres_sessions=97
+redis_dbsize=147199
+redis_events_type=list
+redis_events_len=100
+status=ok
+
+Jigsaw Lodge Society - Daily Archive
+UTC date: 2026-04-09T20:56:56Z
+
+Stack hint:
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml ps
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml logs --tail 80 backend worker relay
+  docker-compose -f /opt/jigsaw_lodge/Jigsaw-Lodge-Society/docker-compose.yml exec -T backend env BASE_URL=http://localhost:3000 WS_URL=ws://relay:3010 node scripts/run-artifact-smoke.js
+
+Latest backup manifest:
+backup_utc=2026-04-09T20:34:49Z
+postgres_source=container:jls_db
+postgres_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/postgres-20260409T203439Z.dump
+redis_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/redis-20260409T203439Z.rdb
+pg_dump_version=16.13-0ubuntu0.24.04.1)
+redis_cli_version=7.0.15
+postgres_sha256=d6d84453fc8222cc1e1b6eabcf799b465242a79a8e54bee267157e31fa5ca986
+redis_sha256=9a5896ee7627999b7f98bbcd51ef27a85c11b85681cdb77237357a90d10bb5da
+
+Latest restore drill summary:
+restore_drill_utc=2026-04-09T20:35:29Z
+postgres_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/postgres-20260409T203439Z.dump
+redis_dump=/opt/jigsaw_lodge/Jigsaw-Lodge-Society/backups/redis-20260409T203439Z.rdb
+postgres_tables=8
+postgres_events=1096624
+postgres_players=6276
+postgres_sessions=97
+redis_dbsize=147199
+redis_events_type=list
+redis_events_len=100
+status=ok
+

@@ -1,8 +1,8 @@
 Hasan Context Pack
-UTC: 2026-04-09T20:36:48Z
+UTC: 2026-04-09T20:56:56Z
 Repo: /opt/jigsaw_lodge/Jigsaw-Lodge-Society
-Branch: ## main...origin/main [ahead 16]
-Latest commit: 8e1b2ea Add recovery drill and incident readiness tooling
+Branch: ## main...origin/main [ahead 18]
+Latest commit: d4246b1 Harden runtime secrets and startup validation
 Working tree: 2 changed path(s)
 
 Model mix:
@@ -13,8 +13,8 @@ Model mix:
 
 Now:
   - `TODO` Task 80: Record one full end-to-end test from SL object -> API -> worker -> relay -> HUD/web.
-  - `TODO` Task 81-82: Move secrets into a proper store and fail fast with beginner-friendly startup errors when required secrets are missing.
   - `TODO` Task 87-88: Wire alert rules and a weekly release checklist now that observability and recovery basics are in place.
+  - `TODO` Task 89: Add the plain-English security review doc now that secrets, signing, and audit behavior are much clearer.
 
 Next:
   - `TODO` Task 75-76: Verify zone modules and artifact-triggering objects once their current source scripts are exported into the repo.
@@ -37,9 +37,9 @@ Recent wins:
   - `DONE` Task 31: session start persistence is now verified in both Redis and Postgres.
 
 Recent commits:
+  - d4246b1 Harden runtime secrets and startup validation
+  - 8c9a6ff Refresh archive after recovery tooling slice
   - 8e1b2ea Add recovery drill and incident readiness tooling
-  - bd42140 Refresh archive after structured logging slice
-  - 6d97527 Add structured audit logs for live support flows
 
 Key files:
   - docs/sprint.md
