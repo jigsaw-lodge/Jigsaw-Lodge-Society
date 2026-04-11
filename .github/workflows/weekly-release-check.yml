@@ -17,26 +17,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check release secret availability
+        id: config
+        run: |
+          if [ -z "${ADMIN_TOKEN}" ]; then
+            echo "Weekly release check skipped: ADMIN_TOKEN secret is not available."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install npm dependencies
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: npm ci
 
       - name: Ensure Docker Compose is available
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: docker compose version
 
       - name: Install redis-cli for telemetry snapshots
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y redis-tools
 
       - name: Prepare secret files
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: bash scripts/prepare-secrets.sh
 
       - name: Build and launch stack
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: docker compose up --build -d
 
       - name: Run weekly release gate
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: bash scripts/weekly-release-check.sh
 
       - name: Upload weekly release evidence
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: weekly-release-evidence
@@ -45,5 +61,5 @@ jobs:
             replay-dumps
 
       - name: Tear down stack
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         run: docker compose down -v

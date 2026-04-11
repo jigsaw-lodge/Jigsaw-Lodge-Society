@@ -23,19 +23,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check backup secret availability
+        id: config
+        run: |
+          missing=""
+          for name in POSTGRES_HOST POSTGRES_PORT POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB REDIS_HOST REDIS_PORT; do
+            eval "value=\${$name:-}"
+            if [ -z "$value" ]; then
+              missing="$missing $name"
+            fi
+          done
+
+          if [ -n "$missing" ]; then
+            echo "Datastore backup skipped: missing required secrets:$missing"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install CLI tools
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client redis-tools
 
       - name: Run datastore backup
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: ./scripts/backup-datastores.sh
 
       - name: Run restore drill on fresh backups
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: ./scripts/restore-drill.sh
 
       - name: Upload backup artifacts
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: datastore-backups

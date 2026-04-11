@@ -40,7 +40,6 @@ jobs:
       - name: Sync preview bundle to staging bucket
         if: ${{ secrets.PREVIEW_FRONTEND_BUCKET && secrets.PREVIEW_AWS_REGION && secrets.PREVIEW_AWS_ACCESS_KEY_ID && secrets.PREVIEW_AWS_SECRET_ACCESS_KEY }}
         run: |
-          unzip -o dist/frontend-bundle.zip -d dist/frontend
           aws s3 sync dist/frontend s3://${{ secrets.PREVIEW_FRONTEND_BUCKET }}/ --acl public-read --delete
 
       - name: Comment preview URL

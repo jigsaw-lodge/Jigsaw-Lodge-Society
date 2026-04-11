@@ -24,19 +24,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check CI secret availability
+        id: config
+        run: |
+          if [ -z "${ADMIN_TOKEN}" ]; then
+            echo "Artifact smoke skipped: ADMIN_TOKEN secret is not available for this run."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install npm dependencies
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: npm ci
 
       - name: Ensure Docker Compose is available
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: docker compose version
 
       - name: Prepare secret files
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: bash scripts/prepare-secrets.sh
 
       - name: Build and launch stack
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: docker compose up --build -d
 
       - name: Wait for API to become healthy
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: |
           for i in {1..30}; do
             if curl -fs http://localhost:3000/api/health >/dev/null; then
@@ -49,10 +64,11 @@ jobs:
           exit 1
 
       - name: Run artifact-smoke validation
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: bash scripts/smoke.sh
 
       - name: Collect replay dumps
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         run: |
           mkdir -p replay-dumps
           if docker ps --filter name=jls_backend --format '{{.Names}}' | grep -q jls_backend; then
@@ -60,11 +76,11 @@ jobs:
           fi
 
       - name: Tear down stack
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         run: docker compose down -v
 
       - name: Upload replay dumps
-        if: ${{ always() }}
+        if: ${{ always() && steps.config.outputs.enabled == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: artifact-smoke-replays

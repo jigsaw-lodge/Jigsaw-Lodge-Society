@@ -43,7 +43,7 @@ jobs:
           ssh-keyscan -H $HETZNER_HOST >> ~/.ssh/known_hosts
 
       - name: Upload bundle to Hetzner
-        run: scp dist/frontend/frontend-bundle.zip $HETZNER_USER@$HETZNER_HOST:/tmp/frontend-bundle.zip
+        run: scp dist/frontend-bundle.zip $HETZNER_USER@$HETZNER_HOST:/tmp/frontend-bundle.zip
 
       - name: Deploy bundle on Hetzner
         run: |
