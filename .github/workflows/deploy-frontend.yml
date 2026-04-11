@@ -21,31 +21,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check deploy secret availability
+        id: config
+        run: |
+          if [ -z "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" ]; then
+            echo "Frontend deploy skipped: HETZNER_SSH_PRIVATE_KEY is not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: npm ci
 
       - name: Ensure zip is available
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y zip
 
       - name: Build frontend artifact
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: ./scripts/build-frontend.sh
 
       - name: Start ssh-agent
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
 
       - name: Cache Hetzner host key
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H $HETZNER_HOST >> ~/.ssh/known_hosts
 
       - name: Upload bundle to Hetzner
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: scp dist/frontend-bundle.zip $HETZNER_USER@$HETZNER_HOST:/tmp/frontend-bundle.zip
 
       - name: Deploy bundle on Hetzner
+        if: ${{ steps.config.outputs.enabled == 'true' }}
         run: |
           ssh $HETZNER_USER@$HETZNER_HOST "HETZNER_TARGET=$HETZNER_TARGET bash -s" <<'EOF'
             set -euo pipefail
